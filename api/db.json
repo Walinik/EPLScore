@@ -1,6 +1,0 @@
-{
-  "employees": [
-    { "id": 1, "full_name": "Системный Администратор", "position": "Глава сети", "password": "admin123", "level": 5, "is_admin": true }
-  ],
-  "chat": []
-}
