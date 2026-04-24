@@ -1,7 +1,7 @@
 // ===== СОСТОЯНИЕ =====
 let currentUser = null;
 let employees = [];
-let currentRoom = null;          // 'private_ИД' — только личные чаты
+let currentRoom = null;
 let isEplsMode = false;
 let refreshInterval = null;
 
@@ -24,55 +24,37 @@ function escapeHtml(str) {
 async function supabaseFetch(endpoint) {
     try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
-            headers: {
-                'apikey': SUPABASE_KEY,
-                'Authorization': `Bearer ${SUPABASE_KEY}`
-            }
+            headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return await res.json();
     } catch (e) {
         console.error('Fetch error:', e);
-        showToast("Ошибка соединения с сервером", true);
         return [];
     }
 }
 
 async function supabasePost(endpoint, body) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
+    return fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
         method: 'POST',
-        headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': 'application/json'
-        },
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
     });
-    return res;
 }
 
 async function supabasePatch(endpoint, id, body) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}?id=eq.${id}`, {
+    return fetch(`${SUPABASE_URL}/rest/v1/${endpoint}?id=eq.${id}`, {
         method: 'PATCH',
-        headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': 'application/json'
-        },
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
     });
-    return res;
 }
 
 async function supabaseDelete(endpoint, id) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}?id=eq.${id}`, {
+    return fetch(`${SUPABASE_URL}/rest/v1/${endpoint}?id=eq.${id}`, {
         method: 'DELETE',
-        headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`
-        }
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
     });
-    return res;
 }
 
 // ===== ЗАГРУЗКА ДАННЫХ =====
@@ -82,10 +64,8 @@ async function loadEmployees() {
     return employees;
 }
 
-// Загружаем сообщения ТОЛЬКО для текущей приватной комнаты
 async function loadMessages() {
     if (!currentUser || !currentRoom) return;
-    // Загружаем сообщения строго для этой комнаты (и только эту)
     const messages = await supabaseFetch(`chat_messages?select=*&order=timestamp.asc&room=eq.${currentRoom}`);
     renderMessages(messages);
 }
@@ -102,10 +82,7 @@ function renderMessages(messages) {
         const div = document.createElement('div');
         div.className = `message ${msg.is_epls ? 'epls' : ''}`;
         const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        div.innerHTML = `
-            <div class="author ${msg.is_epls ? 'epls' : 'normal'}">${escapeHtml(msg.author_name)} <span class="time">${time}</span></div>
-            <div class="text">${escapeHtml(msg.text)}</div>
-        `;
+        div.innerHTML = `<div class="author ${msg.is_epls ? 'epls' : 'normal'}">${escapeHtml(msg.author_name)} <span class="time">${time}</span></div><div class="text">${escapeHtml(msg.text)}</div>`;
         container.appendChild(div);
     });
     container.scrollTop = container.scrollHeight;
@@ -115,10 +92,19 @@ async function sendMessage() {
     const text = document.getElementById('msgInput').value.trim();
     if (!text) return;
 
-    // Поддержка команды /clear
+    // Команда /clear
     if (text === '/clear') {
-        if (confirm(`Вы уверены, что хотите очистить ВСЮ историю чата с этим сотрудником?`)) {
-            await clearChat();
+        if (confirm('Вы уверены, что хотите очистить историю этого чата?')) {
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/chat_messages?room=eq.${currentRoom}`, {
+                method: 'DELETE',
+                headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+            });
+            if (response.ok) {
+                showToast('Чат очищен');
+                await loadMessages();
+            } else {
+                showToast('Ошибка очистки', true);
+            }
         }
         document.getElementById('msgInput').value = '';
         return;
@@ -143,43 +129,44 @@ async function sendMessage() {
         document.getElementById('msgInput').value = '';
         await loadMessages();
     } else {
-        showToast("Ошибка отправки", true);
+        showToast('Ошибка отправки', true);
     }
 }
 
-// Функция очистки чата
-async function clearChat() {
-    if (!currentRoom) return;
-    // Удаляем все сообщения в текущей комнате
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/chat_messages?room=eq.${currentRoom}`, {
-        method: 'DELETE',
-        headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`
-        }
-    });
-    if (response.ok) {
-        showToast(`Чат очищен.`);
-        await loadMessages(); // Обновляем отображение
-    } else {
-        showToast("Ошибка при очистке чата", true);
-    }
-}
-
-// ===== АДМИН-ФУНКЦИИ =====
+// ===== ОТОБРАЖЕНИЕ СПИСКА ЧАТОВ =====
 function renderChatList() {
     const container = document.getElementById('chatList');
-    if (!container || !currentUser?.is_admin) return;
+    if (!container || !currentUser) return;
 
     container.innerHTML = '';
+
+    // Для сотрудника — показываем только чат с администратором
+    if (!currentUser.is_admin) {
+        const admin = employees.find(e => e.is_admin === true);
+        if (admin) {
+            const roomId = `private_${admin.id}`;
+            const li = document.createElement('li');
+            li.textContent = `👤 ${admin.display_name || admin.full_name}`;
+            li.className = currentRoom === roomId ? 'active' : '';
+            li.onclick = async () => {
+                currentRoom = roomId;
+                renderChatList();
+                await loadMessages();
+            };
+            container.appendChild(li);
+        }
+        return;
+    }
+
+    // Для админа — показываем список всех сотрудников
     employees.forEach(emp => {
         if (emp.id === currentUser.id) return;
-        const privateRoom = `private_${emp.id}`;
+        const roomId = `private_${emp.id}`;
         const li = document.createElement('li');
         li.textContent = `👤 ${emp.display_name || emp.full_name}`;
-        li.className = currentRoom === privateRoom ? 'active' : '';
+        li.className = currentRoom === roomId ? 'active' : '';
         li.onclick = async () => {
-            currentRoom = privateRoom;
+            currentRoom = roomId;
             renderChatList();
             await loadMessages();
         };
@@ -187,11 +174,12 @@ function renderChatList() {
     });
 }
 
+// ===== АДМИН-ФУНКЦИИ =====
 function renderAdminTable() {
     const tbody = document.getElementById('empTableBody');
     if (!tbody) return;
     if (!employees.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="loading">Нет сотрудников</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">Нет сотрудников</tr>';
         return;
     }
     tbody.innerHTML = '';
@@ -199,7 +187,6 @@ function renderAdminTable() {
         const row = tbody.insertRow();
         const id = emp.id;
 
-        // ФИО
         const nameCell = row.insertCell(0);
         const nameInp = document.createElement('input');
         nameInp.type = 'text';
@@ -207,7 +194,6 @@ function renderAdminTable() {
         nameInp.id = `name_${id}`;
         nameCell.appendChild(nameInp);
 
-        // Должность
         const posCell = row.insertCell(1);
         const posInp = document.createElement('input');
         posInp.type = 'text';
@@ -215,7 +201,6 @@ function renderAdminTable() {
         posInp.id = `pos_${id}`;
         posCell.appendChild(posInp);
 
-        // Пароль
         const pwdCell = row.insertCell(2);
         const pwdInp = document.createElement('input');
         pwdInp.type = 'password';
@@ -223,7 +208,6 @@ function renderAdminTable() {
         pwdInp.id = `pwd_${id}`;
         pwdCell.appendChild(pwdInp);
 
-        // Уровень
         const lvlCell = row.insertCell(3);
         const lvlSel = document.createElement('select');
         lvlSel.id = `lvl_${id}`;
@@ -236,7 +220,6 @@ function renderAdminTable() {
         }
         lvlCell.appendChild(lvlSel);
 
-        // Админ
         const adminCell = row.insertCell(4);
         const adminChk = document.createElement('input');
         adminChk.type = 'checkbox';
@@ -244,7 +227,6 @@ function renderAdminTable() {
         adminChk.id = `admin_${id}`;
         adminCell.appendChild(adminChk);
 
-        // Действия
         const actCell = row.insertCell(5);
         const saveBtn = document.createElement('button');
         saveBtn.textContent = '💾 Сохранить';
@@ -255,7 +237,7 @@ function renderAdminTable() {
         delBtn.textContent = '🗑️ Удалить';
         delBtn.className = 'btn-sm btn-del';
         delBtn.onclick = () => deleteEmployee(id);
-        if (emp.full_name === "Системный Администратор") delBtn.disabled = true;
+        if (emp.full_name === 'Системный Администратор') delBtn.disabled = true;
 
         actCell.appendChild(saveBtn);
         actCell.appendChild(delBtn);
@@ -270,52 +252,44 @@ async function updateEmployee(id) {
     const is_admin = document.getElementById(`admin_${id}`).checked;
 
     const emp = employees.find(e => e.id === id);
-    if (!emp) return;
-    if (emp.full_name === "Системный Администратор" && !is_admin) {
-        showToast("❌ Нельзя снять права администратора", true);
+    if (emp?.full_name === 'Системный Администратор' && !is_admin) {
+        showToast('❌ Нельзя снять права у главного администратора', true);
         return;
     }
 
-    const response = await supabasePatch('employees', id, {
-        full_name,
-        position,
-        password,
-        level: parseInt(level),
-        is_admin
-    });
+    const response = await supabasePatch('employees', id, { full_name, position, password, level: parseInt(level), is_admin });
     if (response.ok) {
-        showToast(`✅ Данные сотрудника "${full_name}" обновлены`);
+        showToast(`✅ Обновлено`);
         await loadEmployees();
         renderAdminTable();
         renderChatList();
     } else {
-        showToast("❌ Ошибка обновления", true);
+        showToast('❌ Ошибка обновления', true);
     }
 }
 
 async function deleteEmployee(id) {
     const emp = employees.find(e => e.id === id);
     if (!emp) return;
-    if (emp.full_name === "Системный Администратор") {
-        showToast("❌ Нельзя удалить главного администратора", true);
+    if (emp.full_name === 'Системный Администратор') {
+        showToast('❌ Нельзя удалить главного администратора', true);
         return;
     }
-    if (confirm(`Удалить сотрудника "${emp.full_name}"? Это действие необратимо.`)) {
+    if (confirm(`Удалить "${emp.full_name}"?`)) {
         const response = await supabaseDelete('employees', id);
         if (response.ok) {
-            showToast(`✅ ${emp.full_name} удалён`);
+            showToast(`✅ Удалён`);
             await loadEmployees();
             renderAdminTable();
             renderChatList();
-            // Если удалили сотрудника, с которым был открыт чат — переключаемся на первого
-            if (currentRoom === `private_${id}` && employees.length > 0) {
-                const firstEmp = employees.find(e => e.id !== currentUser.id);
-                if (firstEmp) currentRoom = `private_${firstEmp.id}`;
-                renderChatList();
+            // Если удалили текущий чат — переключаемся на первый
+            if (currentRoom === `private_${id}`) {
+                const first = employees.find(e => e.id !== currentUser.id);
+                if (first) currentRoom = `private_${first.id}`;
                 await loadMessages();
             }
         } else {
-            showToast("❌ Ошибка удаления", true);
+            showToast('❌ Ошибка удаления', true);
         }
     }
 }
@@ -327,11 +301,11 @@ async function registerEmployee() {
     const lvl = document.getElementById('regLevel').value;
 
     if (!full || !pos || !pwd) {
-        showToast("❌ Заполните все поля", true);
+        showToast('❌ Заполните все поля', true);
         return;
     }
     if (employees.find(e => e.full_name === full)) {
-        showToast("❌ Сотрудник с таким ФИО уже существует", true);
+        showToast('❌ Сотрудник уже существует', true);
         return;
     }
 
@@ -348,7 +322,7 @@ async function registerEmployee() {
 
     const response = await supabasePost('employees', newEmp);
     if (response.ok) {
-        showToast(`✅ ${full} добавлен в сеть`);
+        showToast(`✅ ${full} добавлен`);
         document.getElementById('regFullname').value = '';
         document.getElementById('regPosition').value = '';
         document.getElementById('regPassword').value = '';
@@ -356,55 +330,46 @@ async function registerEmployee() {
         renderAdminTable();
         renderChatList();
     } else {
-        showToast("❌ Ошибка добавления", true);
+        showToast('❌ Ошибка добавления', true);
     }
 }
 
 // ===== НАСТРОЙКИ ПОЛЬЗОВАТЕЛЯ =====
 async function updateDisplayName() {
     const newName = document.getElementById('displayNameInput').value.trim();
-    if (!newName) {
-        showToast("Введите имя", true);
-        return;
-    }
+    if (!newName) { showToast('Введите имя', true); return; }
     const response = await supabasePatch('employees', currentUser.id, { display_name: newName });
     if (response.ok) {
         currentUser.display_name = newName;
         document.getElementById('userInfoDisplay').innerHTML = `👤 ${currentUser.display_name} | ${currentUser.position} | Уровень ${currentUser.level}`;
-        showToast(`✅ Ваше отображаемое имя изменено на "${newName}"`);
+        showToast(`✅ Имя изменено на "${newName}"`);
         renderChatList();
     } else {
-        showToast("❌ Ошибка", true);
+        showToast('❌ Ошибка', true);
     }
 }
 
 async function updateEplsName() {
     const newName = document.getElementById('eplsNameInput').value.trim();
-    if (!newName) {
-        showToast("Введите имя бота", true);
-        return;
-    }
+    if (!newName) { showToast('Введите имя бота', true); return; }
     const response = await supabasePatch('employees', currentUser.id, { epls_name: newName });
     if (response.ok) {
         currentUser.epls_name = newName;
-        showToast(`✅ Имя бота EPLS изменено на "${newName}"`);
+        showToast(`✅ Имя EPLS изменено на "${newName}"`);
     } else {
-        showToast("❌ Ошибка", true);
+        showToast('❌ Ошибка', true);
     }
 }
 
 async function changePassword() {
     const newPwd = document.getElementById('newPasswordInput').value.trim();
-    if (!newPwd) {
-        showToast("Введите новый пароль", true);
-        return;
-    }
+    if (!newPwd) { showToast('Введите новый пароль', true); return; }
     const response = await supabasePatch('employees', currentUser.id, { password: newPwd });
     if (response.ok) {
-        showToast("✅ Ваш пароль успешно изменён");
+        showToast('✅ Пароль изменён');
         document.getElementById('newPasswordInput').value = '';
     } else {
-        showToast("❌ Ошибка", true);
+        showToast('❌ Ошибка', true);
     }
 }
 
@@ -414,7 +379,7 @@ async function login() {
     const password = document.getElementById('loginPassword').value.trim();
 
     if (!fullname || !password) {
-        showToast("Введите ФИО и пароль", true);
+        showToast('Введите ФИО и пароль', true);
         return;
     }
 
@@ -426,7 +391,7 @@ async function login() {
     const user = employees.find(e => e.full_name === fullname && e.password === password);
 
     if (!user) {
-        showToast("❌ Неверные ФИО или пароль", true);
+        showToast('❌ Неверные ФИО или пароль', true);
         btn.disabled = false;
         btn.textContent = 'ВОЙТИ';
         return;
@@ -436,29 +401,29 @@ async function login() {
     if (!currentUser.display_name) currentUser.display_name = currentUser.full_name;
     if (!currentUser.epls_name) currentUser.epls_name = '🤖 EPLS';
 
-    // Отображаем интерфейс
     document.getElementById('loginCard').classList.add('hidden');
     document.getElementById('mainInterface').classList.remove('hidden');
     document.getElementById('userInfoDisplay').innerHTML = `👤 ${currentUser.display_name} | ${currentUser.position} | Уровень ${currentUser.level}`;
     document.getElementById('displayNameInput').value = currentUser.display_name;
     document.getElementById('eplsNameInput').value = currentUser.epls_name;
 
+    // Права доступа для сотрудников и админов
     const isAdmin = currentUser.is_admin === true;
     document.getElementById('adminPanel').classList.toggle('hidden', !isAdmin);
     document.getElementById('eplsNameRow').classList.toggle('hidden', !isAdmin);
     document.getElementById('chatSidebar').classList.toggle('hidden', !isAdmin);
+    
+    // Кнопка EPLS доступна только админу
+    const eplsContainer = document.getElementById('eplsToggleContainer');
+    eplsContainer.classList.toggle('hidden', !isAdmin);
+    if (!isAdmin) isEplsMode = false;
 
-    // Загружаем данные для админа
+    // Выбираем чат
     if (isAdmin) {
         renderAdminTable();
-    }
-
-    // Выбираем первый доступный чат
-    if (isAdmin && employees.length > 0) {
         const firstEmp = employees.find(e => e.id !== currentUser.id);
         if (firstEmp) currentRoom = `private_${firstEmp.id}`;
-    } else if (!isAdmin) {
-        // Для сотрудника — его личный чат с админом (или создаём)
+    } else {
         const admin = employees.find(e => e.is_admin === true);
         if (admin) currentRoom = `private_${admin.id}`;
     }
@@ -494,7 +459,7 @@ function logout() {
     document.getElementById('loginPassword').value = '';
 }
 
-// ===== ОБРАБОТЧИКИ СОБЫТИЙ =====
+// ===== ОБРАБОТЧИКИ =====
 document.getElementById('loginBtn').onclick = login;
 document.getElementById('logoutBtn').onclick = logout;
 document.getElementById('sendBtn').onclick = sendMessage;
@@ -505,6 +470,7 @@ document.getElementById('changePasswordBtn').onclick = changePassword;
 document.getElementById('registerBtn').onclick = registerEmployee;
 
 document.getElementById('eplsModeBtn').onclick = () => {
+    if (!currentUser.is_admin) return;
     isEplsMode = !isEplsMode;
     const btn = document.getElementById('eplsModeBtn');
     if (isEplsMode) {
@@ -514,8 +480,7 @@ document.getElementById('eplsModeBtn').onclick = () => {
         btn.innerHTML = '👤 Писать как: Я';
         btn.classList.remove('active');
     }
-    showToast(isEplsMode ? 'Вы пишете от имени бота EPLS' : 'Вы пишете от своего имени');
+    showToast(isEplsMode ? 'Вы пишете от имени EPLS' : 'Вы пишете от своего имени');
 };
 
-// Загружаем сотрудников при старте
 loadEmployees();
