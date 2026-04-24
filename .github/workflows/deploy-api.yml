@@ -1,0 +1,21 @@
+name: Deploy JSON Server
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install JSON Server
+        run: npm install -g json-server
+      - name: Start Server
+        run: json-server --watch api/db.json --host 0.0.0.0 --port 8080
