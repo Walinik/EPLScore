@@ -1,7 +1,7 @@
 // ===== СОСТОЯНИЕ =====
 let currentUser = null;
 let employees = [];
-let currentRoom = 'public';
+let currentRoom = null;          // 'private_ИД' — только личные чаты
 let isEplsMode = false;
 let refreshInterval = null;
 
@@ -12,7 +12,7 @@ function showToast(msg, isErr = false) {
     toast.style.borderLeftColor = isErr ? '#ff7a5e' : '#4bffc3';
     toast.innerText = msg;
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2500);
+    setTimeout(() => toast.remove(), 3000);
 }
 
 function escapeHtml(str) {
@@ -22,33 +22,57 @@ function escapeHtml(str) {
 
 // ===== ЗАПРОСЫ К SUPABASE =====
 async function supabaseFetch(endpoint) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-    });
-    return res.json();
+    try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
+            headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`
+            }
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+    } catch (e) {
+        console.error('Fetch error:', e);
+        showToast("Ошибка соединения с сервером", true);
+        return [];
+    }
 }
 
 async function supabasePost(endpoint, body) {
-    return fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
         method: 'POST',
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+        headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json'
+        },
         body: JSON.stringify(body)
     });
+    return res;
 }
 
 async function supabasePatch(endpoint, id, body) {
-    return fetch(`${SUPABASE_URL}/rest/v1/${endpoint}?id=eq.${id}`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}?id=eq.${id}`, {
         method: 'PATCH',
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+        headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json'
+        },
         body: JSON.stringify(body)
     });
+    return res;
 }
 
 async function supabaseDelete(endpoint, id) {
-    return fetch(`${SUPABASE_URL}/rest/v1/${endpoint}?id=eq.${id}`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}?id=eq.${id}`, {
         method: 'DELETE',
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+        headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
     });
+    return res;
 }
 
 // ===== ЗАГРУЗКА ДАННЫХ =====
@@ -58,15 +82,11 @@ async function loadEmployees() {
     return employees;
 }
 
+// Загружаем сообщения ТОЛЬКО для текущей приватной комнаты
 async function loadMessages() {
-    if (!currentUser) return;
-    let query = 'chat_messages?select=*&order=timestamp.asc';
-    if (currentRoom !== 'public') {
-        query = `chat_messages?select=*&order=timestamp.asc&or=(room.eq.public,room.eq.${currentRoom})`;
-    } else {
-        query = 'chat_messages?select=*&order=timestamp.asc&room=eq.public';
-    }
-    const messages = await supabaseFetch(query);
+    if (!currentUser || !currentRoom) return;
+    // Загружаем сообщения строго для этой комнаты (и только эту)
+    const messages = await supabaseFetch(`chat_messages?select=*&order=timestamp.asc&room=eq.${currentRoom}`);
     renderMessages(messages);
 }
 
@@ -74,7 +94,7 @@ function renderMessages(messages) {
     const container = document.getElementById('messages');
     if (!container) return;
     if (!messages || !messages.length) {
-        container.innerHTML = '<div class="loading">Нет сообщений</div>';
+        container.innerHTML = '<div class="loading">Нет сообщений. Напишите что-нибудь!</div>';
         return;
     }
     container.innerHTML = '';
@@ -94,6 +114,15 @@ function renderMessages(messages) {
 async function sendMessage() {
     const text = document.getElementById('msgInput').value.trim();
     if (!text) return;
+
+    // Поддержка команды /clear
+    if (text === '/clear') {
+        if (confirm(`Вы уверены, что хотите очистить ВСЮ историю чата с этим сотрудником?`)) {
+            await clearChat();
+        }
+        document.getElementById('msgInput').value = '';
+        return;
+    }
 
     const authorName = isEplsMode
         ? (currentUser.epls_name || '🤖 EPLS')
@@ -118,25 +147,42 @@ async function sendMessage() {
     }
 }
 
+// Функция очистки чата
+async function clearChat() {
+    if (!currentRoom) return;
+    // Удаляем все сообщения в текущей комнате
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/chat_messages?room=eq.${currentRoom}`, {
+        method: 'DELETE',
+        headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
+    });
+    if (response.ok) {
+        showToast(`Чат очищен.`);
+        await loadMessages(); // Обновляем отображение
+    } else {
+        showToast("Ошибка при очистке чата", true);
+    }
+}
+
 // ===== АДМИН-ФУНКЦИИ =====
 function renderChatList() {
     const container = document.getElementById('chatList');
     if (!container || !currentUser?.is_admin) return;
 
     container.innerHTML = '';
-    const publicLi = document.createElement('li');
-    publicLi.textContent = '💬 Общий чат';
-    publicLi.className = currentRoom === 'public' ? 'active' : '';
-    publicLi.onclick = () => { currentRoom = 'public'; renderChatList(); loadMessages(); };
-    container.appendChild(publicLi);
-
     employees.forEach(emp => {
         if (emp.id === currentUser.id) return;
         const privateRoom = `private_${emp.id}`;
         const li = document.createElement('li');
         li.textContent = `👤 ${emp.display_name || emp.full_name}`;
         li.className = currentRoom === privateRoom ? 'active' : '';
-        li.onclick = () => { currentRoom = privateRoom; renderChatList(); loadMessages(); };
+        li.onclick = async () => {
+            currentRoom = privateRoom;
+            renderChatList();
+            await loadMessages();
+        };
         container.appendChild(li);
     });
 }
@@ -152,12 +198,35 @@ function renderAdminTable() {
     employees.forEach(emp => {
         const row = tbody.insertRow();
         const id = emp.id;
-        row.insertCell(0).innerHTML = `<input type="text" id="name_${id}" value="${escapeHtml(emp.full_name)}">`;
-        row.insertCell(1).innerHTML = `<input type="text" id="pos_${id}" value="${escapeHtml(emp.position)}">`;
-        row.insertCell(2).innerHTML = `<input type="password" id="pwd_${id}" value="${emp.password}">`;
-        
+
+        // ФИО
+        const nameCell = row.insertCell(0);
+        const nameInp = document.createElement('input');
+        nameInp.type = 'text';
+        nameInp.value = emp.full_name;
+        nameInp.id = `name_${id}`;
+        nameCell.appendChild(nameInp);
+
+        // Должность
+        const posCell = row.insertCell(1);
+        const posInp = document.createElement('input');
+        posInp.type = 'text';
+        posInp.value = emp.position;
+        posInp.id = `pos_${id}`;
+        posCell.appendChild(posInp);
+
+        // Пароль
+        const pwdCell = row.insertCell(2);
+        const pwdInp = document.createElement('input');
+        pwdInp.type = 'password';
+        pwdInp.value = emp.password;
+        pwdInp.id = `pwd_${id}`;
+        pwdCell.appendChild(pwdInp);
+
+        // Уровень
         const lvlCell = row.insertCell(3);
         const lvlSel = document.createElement('select');
+        lvlSel.id = `lvl_${id}`;
         for (let i = 1; i <= 5; i++) {
             const opt = document.createElement('option');
             opt.value = i;
@@ -165,28 +234,29 @@ function renderAdminTable() {
             if (emp.level == i) opt.selected = true;
             lvlSel.appendChild(opt);
         }
-        lvlSel.id = `lvl_${id}`;
         lvlCell.appendChild(lvlSel);
-        
+
+        // Админ
         const adminCell = row.insertCell(4);
-        const chk = document.createElement('input');
-        chk.type = 'checkbox';
-        chk.checked = emp.is_admin === true;
-        chk.id = `admin_${id}`;
-        adminCell.appendChild(chk);
-        
+        const adminChk = document.createElement('input');
+        adminChk.type = 'checkbox';
+        adminChk.checked = emp.is_admin === true;
+        adminChk.id = `admin_${id}`;
+        adminCell.appendChild(adminChk);
+
+        // Действия
         const actCell = row.insertCell(5);
         const saveBtn = document.createElement('button');
         saveBtn.textContent = '💾 Сохранить';
         saveBtn.className = 'btn-sm';
         saveBtn.onclick = () => updateEmployee(id);
-        
+
         const delBtn = document.createElement('button');
         delBtn.textContent = '🗑️ Удалить';
         delBtn.className = 'btn-sm btn-del';
         delBtn.onclick = () => deleteEmployee(id);
         if (emp.full_name === "Системный Администратор") delBtn.disabled = true;
-        
+
         actCell.appendChild(saveBtn);
         actCell.appendChild(delBtn);
     });
@@ -198,17 +268,23 @@ async function updateEmployee(id) {
     const password = document.getElementById(`pwd_${id}`).value;
     const level = document.getElementById(`lvl_${id}`).value;
     const is_admin = document.getElementById(`admin_${id}`).checked;
-    
+
     const emp = employees.find(e => e.id === id);
     if (!emp) return;
     if (emp.full_name === "Системный Администратор" && !is_admin) {
-        showToast("❌ Нельзя снять админку", true);
+        showToast("❌ Нельзя снять права администратора", true);
         return;
     }
-    
-    const response = await supabasePatch('employees', id, { full_name, position, password, level: parseInt(level), is_admin });
+
+    const response = await supabasePatch('employees', id, {
+        full_name,
+        position,
+        password,
+        level: parseInt(level),
+        is_admin
+    });
     if (response.ok) {
-        showToast(`✅ ${full_name} обновлён`);
+        showToast(`✅ Данные сотрудника "${full_name}" обновлены`);
         await loadEmployees();
         renderAdminTable();
         renderChatList();
@@ -224,13 +300,20 @@ async function deleteEmployee(id) {
         showToast("❌ Нельзя удалить главного администратора", true);
         return;
     }
-    if (confirm(`Удалить сотрудника "${emp.full_name}"?`)) {
+    if (confirm(`Удалить сотрудника "${emp.full_name}"? Это действие необратимо.`)) {
         const response = await supabaseDelete('employees', id);
         if (response.ok) {
             showToast(`✅ ${emp.full_name} удалён`);
             await loadEmployees();
             renderAdminTable();
             renderChatList();
+            // Если удалили сотрудника, с которым был открыт чат — переключаемся на первого
+            if (currentRoom === `private_${id}` && employees.length > 0) {
+                const firstEmp = employees.find(e => e.id !== currentUser.id);
+                if (firstEmp) currentRoom = `private_${firstEmp.id}`;
+                renderChatList();
+                await loadMessages();
+            }
         } else {
             showToast("❌ Ошибка удаления", true);
         }
@@ -242,16 +325,16 @@ async function registerEmployee() {
     const pos = document.getElementById('regPosition').value.trim();
     const pwd = document.getElementById('regPassword').value.trim();
     const lvl = document.getElementById('regLevel').value;
-    
+
     if (!full || !pos || !pwd) {
         showToast("❌ Заполните все поля", true);
         return;
     }
     if (employees.find(e => e.full_name === full)) {
-        showToast("❌ Сотрудник уже существует", true);
+        showToast("❌ Сотрудник с таким ФИО уже существует", true);
         return;
     }
-    
+
     const newEmp = {
         id: Date.now().toString(),
         full_name: full,
@@ -262,10 +345,10 @@ async function registerEmployee() {
         display_name: full,
         epls_name: '🤖 EPLS'
     };
-    
+
     const response = await supabasePost('employees', newEmp);
     if (response.ok) {
-        showToast(`✅ ${full} добавлен`);
+        showToast(`✅ ${full} добавлен в сеть`);
         document.getElementById('regFullname').value = '';
         document.getElementById('regPosition').value = '';
         document.getElementById('regPassword').value = '';
@@ -280,13 +363,15 @@ async function registerEmployee() {
 // ===== НАСТРОЙКИ ПОЛЬЗОВАТЕЛЯ =====
 async function updateDisplayName() {
     const newName = document.getElementById('displayNameInput').value.trim();
-    if (!newName) { showToast("Введите имя", true); return; }
-    
+    if (!newName) {
+        showToast("Введите имя", true);
+        return;
+    }
     const response = await supabasePatch('employees', currentUser.id, { display_name: newName });
     if (response.ok) {
         currentUser.display_name = newName;
         document.getElementById('userInfoDisplay').innerHTML = `👤 ${currentUser.display_name} | ${currentUser.position} | Уровень ${currentUser.level}`;
-        showToast(`✅ Имя изменено на "${newName}"`);
+        showToast(`✅ Ваше отображаемое имя изменено на "${newName}"`);
         renderChatList();
     } else {
         showToast("❌ Ошибка", true);
@@ -295,12 +380,14 @@ async function updateDisplayName() {
 
 async function updateEplsName() {
     const newName = document.getElementById('eplsNameInput').value.trim();
-    if (!newName) { showToast("Введите имя бота", true); return; }
-    
+    if (!newName) {
+        showToast("Введите имя бота", true);
+        return;
+    }
     const response = await supabasePatch('employees', currentUser.id, { epls_name: newName });
     if (response.ok) {
         currentUser.epls_name = newName;
-        showToast(`✅ Имя EPLS изменено на "${newName}"`);
+        showToast(`✅ Имя бота EPLS изменено на "${newName}"`);
     } else {
         showToast("❌ Ошибка", true);
     }
@@ -308,11 +395,13 @@ async function updateEplsName() {
 
 async function changePassword() {
     const newPwd = document.getElementById('newPasswordInput').value.trim();
-    if (!newPwd) { showToast("Введите новый пароль", true); return; }
-    
+    if (!newPwd) {
+        showToast("Введите новый пароль", true);
+        return;
+    }
     const response = await supabasePatch('employees', currentUser.id, { password: newPwd });
     if (response.ok) {
-        showToast("✅ Пароль изменён");
+        showToast("✅ Ваш пароль успешно изменён");
         document.getElementById('newPasswordInput').value = '';
     } else {
         showToast("❌ Ошибка", true);
@@ -323,61 +412,72 @@ async function changePassword() {
 async function login() {
     const fullname = document.getElementById('loginFullname').value.trim();
     const password = document.getElementById('loginPassword').value.trim();
-    
+
     if (!fullname || !password) {
         showToast("Введите ФИО и пароль", true);
         return;
     }
-    
+
     const btn = document.getElementById('loginBtn');
     btn.disabled = true;
     btn.textContent = 'ВХОД...';
-    
+
     await loadEmployees();
     const user = employees.find(e => e.full_name === fullname && e.password === password);
-    
+
     if (!user) {
         showToast("❌ Неверные ФИО или пароль", true);
         btn.disabled = false;
         btn.textContent = 'ВОЙТИ';
         return;
     }
-    
+
     currentUser = user;
     if (!currentUser.display_name) currentUser.display_name = currentUser.full_name;
     if (!currentUser.epls_name) currentUser.epls_name = '🤖 EPLS';
-    
+
+    // Отображаем интерфейс
     document.getElementById('loginCard').classList.add('hidden');
     document.getElementById('mainInterface').classList.remove('hidden');
     document.getElementById('userInfoDisplay').innerHTML = `👤 ${currentUser.display_name} | ${currentUser.position} | Уровень ${currentUser.level}`;
     document.getElementById('displayNameInput').value = currentUser.display_name;
     document.getElementById('eplsNameInput').value = currentUser.epls_name;
-    
+
     const isAdmin = currentUser.is_admin === true;
     document.getElementById('adminPanel').classList.toggle('hidden', !isAdmin);
     document.getElementById('eplsNameRow').classList.toggle('hidden', !isAdmin);
     document.getElementById('chatSidebar').classList.toggle('hidden', !isAdmin);
-    
+
+    // Загружаем данные для админа
     if (isAdmin) {
         renderAdminTable();
-        renderChatList();
     }
-    
-    currentRoom = 'public';
+
+    // Выбираем первый доступный чат
+    if (isAdmin && employees.length > 0) {
+        const firstEmp = employees.find(e => e.id !== currentUser.id);
+        if (firstEmp) currentRoom = `private_${firstEmp.id}`;
+    } else if (!isAdmin) {
+        // Для сотрудника — его личный чат с админом (или создаём)
+        const admin = employees.find(e => e.is_admin === true);
+        if (admin) currentRoom = `private_${admin.id}`;
+    }
+
+    renderChatList();
     await loadMessages();
     startAutoRefresh();
-    
+
     btn.disabled = false;
     btn.textContent = 'ВОЙТИ';
 }
 
 function startAutoRefresh() {
     if (refreshInterval) clearInterval(refreshInterval);
-    refreshInterval = setInterval(() => {
+    refreshInterval = setInterval(async () => {
         if (currentUser) {
-            loadMessages();
+            await loadMessages();
             if (currentUser.is_admin) {
-                loadEmployees();
+                await loadEmployees();
                 renderAdminTable();
                 renderChatList();
             }
@@ -414,7 +514,7 @@ document.getElementById('eplsModeBtn').onclick = () => {
         btn.innerHTML = '👤 Писать как: Я';
         btn.classList.remove('active');
     }
-    showToast(isEplsMode ? 'Вы пишете от имени EPLS' : 'Вы пишете от своего имени');
+    showToast(isEplsMode ? 'Вы пишете от имени бота EPLS' : 'Вы пишете от своего имени');
 };
 
 // Загружаем сотрудников при старте
