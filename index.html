@@ -1,118 +1,139 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>EPLS | Корпоративная сеть</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-<div class="dashboard">
-    <!-- Карточка входа -->
-    <div class="card" id="loginCard">
-        <div class="card-header">
-            <h2>🔐 ВХОД В СЕТЬ EPLS</h2>
-            <div class="badge-led"><span class="led"></span> КОРПОРАТИВНАЯ СЕТЬ</div>
+    <div class="dashboard">
+        <!-- Карточка входа -->
+        <div class="card" id="loginCard">
+            <div class="card-header">
+                <h2>🔐 ВХОД В СЕТЬ EPLS</h2>
+                <div class="badge-led"><span class="led"></span> КОРПОРАТИВНАЯ СЕТЬ</div>
+            </div>
+            <div class="card-content">
+                <div class="login-form">
+                    <input type="text" id="loginFullname" placeholder="ФИО" autocomplete="off">
+                    <input type="password" id="loginPassword" placeholder="Пароль" autocomplete="off">
+                    <button class="btn-primary" id="loginBtn">ВОЙТИ</button>
+                    <p class="login-hint">Нет аккаунта? Обратитесь к администратору</p>
+                </div>
+            </div>
         </div>
-        <div class="card-content">
-            <div class="login-form">
-                <input type="text" id="loginFullname" placeholder="ФИО" autocomplete="off">
-                <input type="password" id="loginPassword" placeholder="Пароль" autocomplete="off">
-                <button class="btn-primary" id="loginBtn">ВОЙТИ</button>
-                <p class="login-hint">Нет аккаунта? Обратитесь к администратору</p>
+
+        <!-- Основной интерфейс -->
+        <div id="mainInterface" class="hidden">
+            <!-- Шапка -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>📋 КОРПОРАТИВНАЯ СЕТЬ EPLS</h2>
+                    <div class="user-bar">
+                        <span id="userInfoDisplay" class="user-name">👤 Загрузка...</span>
+                        <button id="logoutBtn" class="logout-btn">🚪 Выйти</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Чат -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>💬 ЧАТ</h2>
+                    <div class="badge-led"><span class="led"></span> ОНЛАЙН</div>
+                </div>
+                <div class="card-content">
+                    <div class="chat-container">
+                        <div id="chatSidebar" class="chat-sidebar hidden">
+                            <h3>📁 ЛИЧНЫЕ ЧАТЫ</h3>
+                            <ul id="chatList" class="chat-list"></ul>
+                        </div>
+                        <div class="chat-main">
+                            <div class="epls-toggle">
+                                <button id="eplsModeBtn">👤 Писать как: Я</button>
+                            </div>
+                            <div id="messages" class="messages">
+                                <div class="loading">Загрузка сообщений...</div>
+                            </div>
+                            <div class="input-area">
+                                <input type="text" id="msgInput" placeholder="Введите сообщение...">
+                                <button class="btn-primary" id="sendBtn" style="width: auto;">➤ Отправить</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Настройки -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>⚙️ НАСТРОЙКИ</h2>
+                    <div class="badge-led"><span class="led"></span> ПРОФИЛЬ</div>
+                </div>
+                <div class="card-content">
+                    <div class="settings-row">
+                        <input type="text" id="displayNameInput" placeholder="Ваше имя в чате">
+                        <button id="updateNameBtn" class="btn-secondary">💾 Сохранить имя</button>
+                    </div>
+                    <div id="eplsNameRow" class="settings-row hidden">
+                        <input type="text" id="eplsNameInput" placeholder="Имя бота EPLS">
+                        <button id="updateEplsNameBtn" class="btn-secondary">🤖 Сохранить имя EPLS</button>
+                    </div>
+                    <div class="settings-row">
+                        <input type="password" id="newPasswordInput" placeholder="Новый пароль">
+                        <button id="changePasswordBtn" class="btn-secondary">🔑 Сменить пароль</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Админ-панель -->
+            <div id="adminPanel" class="card hidden">
+                <div class="card-header">
+                    <h2>👑 АДМИН-ПАНЕЛЬ</h2>
+                    <div class="badge-led"><span class="led"></span> ПОЛНЫЙ ДОСТУП</div>
+                </div>
+                <div class="card-content">
+                    <h3>➕ НОВЫЙ СОТРУДНИК</h3>
+                    <div class="settings-row">
+                        <input type="text" id="regFullname" placeholder="ФИО">
+                        <input type="text" id="regPosition" placeholder="Должность">
+                        <input type="password" id="regPassword" placeholder="Пароль">
+                        <select id="regLevel">
+                            <option value="1">Ур.1</option>
+                            <option value="2">Ур.2</option>
+                            <option value="3">Ур.3</option>
+                            <option value="4">Ур.4</option>
+                            <option value="5">Ур.5</option>
+                        </select>
+                        <button id="registerBtn" class="btn-secondary">➕ ДОБАВИТЬ</button>
+                    </div>
+
+                    <h3>👥 СПИСОК СОТРУДНИКОВ</h3>
+                    <div class="table-wrapper">
+                        <table class="emp-table">
+                            <thead>
+                                <tr>
+                                    <th>ФИО</th>
+                                    <th>Должность</th>
+                                    <th>Пароль</th>
+                                    <th>Уровень</th>
+                                    <th>Админ</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="empTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Основной интерфейс -->
-    <div id="mainInterface" class="hidden">
-        <!-- Шапка -->
-        <div class="card">
-            <div class="card-header">
-                <h2>📋 КОРПОРАТИВНАЯ СЕТЬ EPLS</h2>
-                <div class="user-bar">
-                    <span id="userInfoDisplay" class="user-name">👤 Загрузка...</span>
-                    <button id="logoutBtn" class="logout-btn">🚪 Выйти</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Чат -->
-        <div class="card">
-            <div class="card-header">
-                <h2>💬 ЧАТ</h2>
-                <div class="badge-led"><span class="led"></span> ОНЛАЙН</div>
-            </div>
-            <div class="card-content">
-                <div class="chat-container">
-                    <div id="chatSidebar" class="chat-sidebar hidden">
-                        <h3>📁 ЛИЧНЫЕ ЧАТЫ</h3>
-                        <ul id="chatList" class="chat-list"></ul>
-                    </div>
-                    <div class="chat-main">
-                        <div class="epls-toggle">
-                            <button id="eplsModeBtn">👤 Писать как: Я</button>
-                        </div>
-                        <div id="messages" class="messages">
-                            <div class="loading">Загрузка сообщений...</div>
-                        </div>
-                        <div class="input-area">
-                            <input type="text" id="msgInput" placeholder="Введите сообщение...">
-                            <button class="btn-primary" id="sendBtn" style="width: auto;">➤ Отправить</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Настройки -->
-        <div class="card">
-            <div class="card-header"><h2>⚙️ НАСТРОЙКИ</h2><div class="badge-led"><span class="led"></span> ПРОФИЛЬ</div></div>
-            <div class="card-content">
-                <div class="settings-row">
-                    <input type="text" id="displayNameInput" placeholder="Ваше имя в чате">
-                    <button id="updateNameBtn" class="btn-secondary">💾 Сохранить имя</button>
-                </div>
-                <div id="eplsNameRow" class="settings-row hidden">
-                    <input type="text" id="eplsNameInput" placeholder="Имя бота EPLS">
-                    <button id="updateEplsNameBtn" class="btn-secondary">🤖 Сохранить имя EPLS</button>
-                </div>
-                <div class="settings-row">
-                    <input type="password" id="newPasswordInput" placeholder="Новый пароль">
-                    <button id="changePasswordBtn" class="btn-secondary">🔑 Сменить пароль</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Админ-панель -->
-        <div id="adminPanel" class="card hidden">
-            <div class="card-header"><h2>👑 АДМИН-ПАНЕЛЬ</h2><div class="badge-led"><span class="led"></span> ПОЛНЫЙ ДОСТУП</div></div>
-            <div class="card-content">
-                <h3>➕ НОВЫЙ СОТРУДНИК</h3>
-                <div class="settings-row">
-                    <input type="text" id="regFullname" placeholder="ФИО">
-                    <input type="text" id="regPosition" placeholder="Должность">
-                    <input type="password" id="regPassword" placeholder="Пароль">
-                    <select id="regLevel">
-                        <option value="1">Ур.1</option><option value="2">Ур.2</option><option value="3">Ур.3</option>
-                        <option value="4">Ур.4</option><option value="5">Ур.5</option>
-                    </select>
-                    <button id="registerBtn" class="btn-secondary">➕ ДОБАВИТЬ</button>
-                </div>
-                
-                <h3>👥 СПИСОК СОТРУДНИКОВ</h3>
-                <div class="table-wrapper">
-                    <table class="emp-table">
-                        <thead><tr><th>ФИО</th><th>Должность</th><th>Пароль</th><th>Уровень</th><th>Админ</th><th>Действия</th></tr></thead>
-                        <tbody id="empTableBody"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script src="config.js"></script>
-<script src="script.js"></script>
+    <script src="config.js"></script>
+    <script src="script.js"></script>
 </body>
+
 </html>
