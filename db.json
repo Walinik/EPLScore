@@ -1,0 +1,20 @@
+{
+  "employees": [
+    {
+      "id": "admin_main",
+      "full_name": "Системный Администратор",
+      "position": "Глава сети",
+      "password": "admin123",
+      "level": 5,
+      "is_admin": true
+    }
+  ],
+  "chat": [
+    {
+      "id": "init1",
+      "author": "Система",
+      "text": "Чат активен. Пишите запросы администратору.",
+      "timestamp": 1745510400000
+    }
+  ]
+}
