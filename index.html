@@ -6,28 +6,10 @@
     <title>EPLS | Корпоративная сеть</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            min-height: 100vh;
-            background: radial-gradient(circle at 20% 30%, #0a1f1a, #030c0f);
-            font-family: 'Segoe UI', 'Courier New', monospace;
-            padding: 1.5rem;
-        }
+        body { min-height: 100vh; background: radial-gradient(circle at 20% 30%, #0a1f1a, #030c0f); font-family: 'Segoe UI', 'Courier New', monospace; padding: 1.5rem; }
         .dashboard { max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; }
-        .card {
-            background: linear-gradient(145deg, #0a191c, #031113);
-            border-radius: 1.5rem;
-            border: 1px solid rgba(30, 180, 140, 0.5);
-            overflow: hidden;
-        }
-        .card-header {
-            padding: 0.8rem 1.5rem;
-            background: rgba(0, 30, 28, 0.7);
-            border-bottom: 1px solid rgba(40, 200, 150, 0.4);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-        }
+        .card { background: linear-gradient(145deg, #0a191c, #031113); border-radius: 1.5rem; border: 1px solid rgba(30, 180, 140, 0.5); overflow: hidden; }
+        .card-header { padding: 0.8rem 1.5rem; background: rgba(0, 30, 28, 0.7); border-bottom: 1px solid rgba(40, 200, 150, 0.4); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
         .card-header h2 { font-size: 1.1rem; background: linear-gradient(135deg, #b0ffea, #3dd68c); background-clip: text; -webkit-background-clip: text; color: transparent; }
         .badge-led { display: flex; align-items: center; gap: 8px; font-size: 0.65rem; background: #031e1b; padding: 4px 12px; border-radius: 30px; color: #adeee1; }
         .led { width: 9px; height: 9px; background-color: #2affb6; border-radius: 50%; animation: pulse 1.5s infinite; }
@@ -61,7 +43,6 @@
         .change-author-btn { background: transparent; border: 1px solid #2fa984; padding: 3px 10px; border-radius: 30px; font-size: 0.55rem; color: #bbf0e0; cursor: pointer; }
         .hidden { display: none; }
         .loading { text-align: center; padding: 20px; color: #5aa694; }
-        @media (max-width: 850px) { .card-content { padding: 1rem; } }
     </style>
 </head>
 <body>
@@ -104,7 +85,8 @@
             <div class="card">
                 <div class="card-header"><h2>👑 АДМИН-ПАНЕЛЬ</h2><div class="badge-led"><span class="led"></span> ПОЛНЫЙ ДОСТУП</div></div>
                 <div class="card-content employees-table-wrapper">
-                    <table class="emp-table"><thead><tr><th>ФИО</th><th>Должность</th><th>Пароль</th><th>Уровень</th><th>Админ</th><th>Действия</th></tr></thead><tbody id="empTableBody"><tr><td colspan="6" class="loading">Загрузка...</td></tr></tbody>}</div>
+                    <table class="emp-table"><thead><tr><th>ФИО</th><th>Должность</th><th>Пароль</th><th>Уровень</th><th>Админ</th><th>Действия</th></tr></thead><tbody id="empTableBody"><tr><td colspan="6" class="loading">Загрузка...</td></tr></tbody></table>
+                </div>
             </div>
             <div class="card">
                 <div class="card-header"><h2>➕ НОВЫЙ СОТРУДНИК</h2><div class="badge-led"><span class="led"></span> АДМИН</div></div>
@@ -123,70 +105,68 @@
 </div>
 
 <script>
-    // ===== ВСТАВЬТЕ ВАШ URL СЮДА =====
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbwjU7GZPtT4Y0y_PH6JJ9dGYbjDIeqFVIa7UyVZBOYE0LJY_AycDNk4wmp_I1jrcvYb/exec';
+    // ===== ВАШИ ДАННЫЕ ИЗ SUPABASE (уже вставлены) =====
+    const SUPABASE_URL = 'https://jwhzfopxfalqhimnbfqw.supabase.co';  // УБЕРИТЕ ПРОБЕЛЫ ВНУТРИ URL!!!
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3aHpmb3B4ZmFscWhpbW5iZnF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwMzMyMTUsImV4cCI6MjA5MjYwOTIxNX0.YNhzwTj6MFgRymR0UyE44Ler2B53T-qfMkZqU6xTp4M';
     
     let employees = [];
     let chatMessages = [];
     let currentUser = null;
     let currentChatAuthor = localStorage.getItem('epls_chat_author') || "";
-    let lastEmployeesFetch = 0;
-    let lastChatFetch = 0;
-    let pendingRequest = false;
 
-    function showToast(msg, isErr = false) {
-        const toast = document.createElement('div');
-        toast.className = 'toast';
-        toast.style.borderLeftColor = isErr ? '#ff7a5e' : '#4bffc3';
-        toast.innerText = msg;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2500);
-    }
-
-    async function fetchWithRetry(url, options = {}, retries = 2) {
-        for (let i = 0; i < retries; i++) {
-            try {
-                const response = await fetch(url, options);
-                if (response.ok) return await response.json();
-                if (response.status === 429) await new Promise(r => setTimeout(r, 2000));
-            } catch(e) { if (i === retries-1) throw e; await new Promise(r => setTimeout(r, 1000)); }
-        }
-        return null;
-    }
-
-    async function fetchEmployees(force = false) {
-        const now = Date.now();
-        if (!force && now - lastEmployeesFetch < 8000) return employees;
-        if (pendingRequest) return employees;
-        pendingRequest = true;
+    async function supabaseFetch(endpoint, options = {}) {
         try {
-            const data = await fetchWithRetry(`${GAS_URL}?action=employees&t=${now}`);
-            if (data && Array.isArray(data)) { employees = data; lastEmployeesFetch = now; }
-            if (currentUser && currentUser.is_admin === true) renderAdminTable();
-            return employees;
-        } catch(e) { console.warn('fetchEmployees error:', e); return employees; }
-        finally { pendingRequest = false; }
-    }
-
-    async function fetchChat(force = false) {
-        const now = Date.now();
-        if (!force && now - lastChatFetch < 5000) return chatMessages;
-        try {
-            const data = await fetchWithRetry(`${GAS_URL}?action=chat&t=${now}`);
-            if (data && Array.isArray(data)) { chatMessages = data; lastChatFetch = now; renderChat(); }
-            return chatMessages;
-        } catch(e) { console.warn('fetchChat error:', e); return chatMessages; }
-    }
-
-    async function sendPostRequest(action, data) {
-        try {
-            const response = await fetch(GAS_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action, ...data })
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
+                headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+                ...options
             });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return await response.json();
-        } catch(e) { showToast("Ошибка соединения", true); return null; }
+        } catch(e) { console.warn('supabaseFetch error:', e); return []; }
+    }
+
+    async function supabasePost(endpoint, body) {
+        try {
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
+                method: 'POST',
+                headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            return response;
+        } catch(e) { console.warn('supabasePost error:', e); return null; }
+    }
+
+    async function supabasePatch(endpoint, id, body) {
+        try {
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}?id=eq.${id}`, {
+                method: 'PATCH',
+                headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            return response;
+        } catch(e) { console.warn('supabasePatch error:', e); return null; }
+    }
+
+    async function supabaseDelete(endpoint, id) {
+        try {
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}?id=eq.${id}`, {
+                method: 'DELETE',
+                headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+            });
+            return response;
+        } catch(e) { console.warn('supabaseDelete error:', e); return null; }
+    }
+
+    async function fetchEmployees() {
+        const data = await supabaseFetch('employees?select=*');
+        if (data && !data.error) { employees = data; renderAdminTable(); }
+        return employees;
+    }
+
+    async function fetchChat() {
+        const data = await supabaseFetch('chat?select=*&order=timestamp.asc');
+        if (data && !data.error) { chatMessages = data; renderChat(); }
+        return chatMessages;
     }
 
     function renderChat() {
@@ -194,10 +174,10 @@
         if (!container) return;
         if (!chatMessages || chatMessages.length === 0) { container.innerHTML = '<div class="loading">Нет сообщений</div>'; return; }
         container.innerHTML = '';
-        [...chatMessages].sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0)).forEach(msg => {
+        chatMessages.forEach(msg => {
             const div = document.createElement('div');
             div.className = 'message';
-            const time = msg.timestamp ? new Date(parseInt(msg.timestamp)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+            const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
             div.innerHTML = `<div class="author">${escapeHtml(msg.author)} <span style="color:#5a9e8a;">${time}</span></div><div class="text">${escapeHtml(msg.text)}</div>`;
             container.appendChild(div);
         });
@@ -207,24 +187,21 @@
     async function sendMessage() {
         const text = document.getElementById('chatInput').value.trim();
         if (!text) return;
-        const result = await sendPostRequest('add_chat', { author: currentChatAuthor, text: text, timestamp: Date.now() });
-        if (result && result.success) {
-            document.getElementById('chatInput').value = '';
-            await fetchChat(true);
-        } else showToast("Ошибка отправки", true);
+        const newMsg = { id: Date.now().toString(), author: currentChatAuthor, text: text, timestamp: Date.now() };
+        const response = await supabasePost('chat', newMsg);
+        if (response && response.ok) { document.getElementById('chatInput').value = ''; await fetchChat(); }
+        else showToast("Ошибка отправки", true);
     }
 
     async function changePassword() {
         const newPwd = document.getElementById('newPassword').value.trim();
         if (!newPwd) { showToast("Введите новый пароль", true); return; }
-        await fetchEmployees(true);
-        const emp = employees.find(e => e.id === currentUser.id);
-        if (emp) {
-            await sendPostRequest('update_employee', { id: emp.id, full_name: emp.full_name, position: emp.position, password: newPwd, level: emp.level, is_admin: emp.is_admin });
+        const response = await supabasePatch('employees', currentUser.id, { password: newPwd });
+        if (response && response.ok) {
             showToast("Пароль изменён");
             document.getElementById('newPassword').value = '';
-            if (currentUser) currentUser.password = newPwd;
-        }
+            currentUser.password = newPwd;
+        } else showToast("Ошибка смены пароля", true);
     }
 
     async function registerEmployee() {
@@ -233,36 +210,34 @@
         const pwd = document.getElementById('regPassword').value.trim();
         const lvl = document.getElementById('regLevel').value;
         if (!full || !pos || !pwd) { showToast("Заполните все поля", true); return; }
-        await fetchEmployees(true);
         if (employees.find(e => e.full_name === full)) { showToast("Сотрудник уже существует", true); return; }
-        const result = await sendPostRequest('add_employee', { full_name: full, position: pos, password: pwd, level: lvl, is_admin: 'FALSE' });
-        if (result && result.success) {
+        const newEmp = { id: Date.now().toString(), full_name: full, position: pos, password: pwd, level: parseInt(lvl), is_admin: false };
+        const response = await supabasePost('employees', newEmp);
+        if (response && response.ok) {
             showToast(`✅ ${full} добавлен`);
             document.getElementById('regFullname').value = '';
             document.getElementById('regPosition').value = '';
             document.getElementById('regPassword').value = '';
-            await fetchEmployees(true);
+            await fetchEmployees();
         } else showToast("Ошибка добавления", true);
     }
 
-    async function updateEmployee(id, newFullName, newPosition, newPassword, newLevel, newIsAdmin) {
-        await fetchEmployees(true);
+    async function updateEmployee(id, full_name, position, password, level, is_admin) {
         const emp = employees.find(e => e.id === id);
         if (!emp) return;
-        if (emp.full_name === "Системный Администратор" && newIsAdmin === false) { showToast("Нельзя снять админку", true); return; }
-        const result = await sendPostRequest('update_employee', { id, full_name: newFullName, position: newPosition, password: newPassword, level: newLevel, is_admin: newIsAdmin ? 'TRUE' : 'FALSE' });
-        if (result && result.success) { showToast(`✅ Обновлён`); await fetchEmployees(true); }
+        if (emp.full_name === "Системный Администратор" && is_admin === false) { showToast("Нельзя снять админку", true); return; }
+        const response = await supabasePatch('employees', id, { full_name, position, password, level: parseInt(level), is_admin });
+        if (response && response.ok) { showToast(`✅ Обновлён`); await fetchEmployees(); }
         else showToast("Ошибка обновления", true);
     }
 
     async function deleteEmployee(id) {
-        await fetchEmployees(true);
         const emp = employees.find(e => e.id === id);
         if (!emp) return;
         if (emp.full_name === "Системный Администратор") { showToast("Нельзя удалить", true); return; }
         if (confirm(`Удалить ${emp.full_name}?`)) {
-            const result = await sendPostRequest('delete_employee', { id });
-            if (result && result.success) { showToast(`🗑️ Удалён`); await fetchEmployees(true); }
+            const response = await supabaseDelete('employees', id);
+            if (response && response.ok) { showToast(`🗑️ Удалён`); await fetchEmployees(); }
             else showToast("Ошибка удаления", true);
         }
     }
@@ -274,17 +249,12 @@
         tbody.innerHTML = '';
         employees.forEach(emp => {
             const row = tbody.insertRow();
-            const nameCell = row.insertCell(0);
-            const nameInp = document.createElement('input'); nameInp.value = emp.full_name;
-            const posCell = row.insertCell(1);
-            const posInp = document.createElement('input'); posInp.value = emp.position;
-            const pwdCell = row.insertCell(2);
-            const pwdInp = document.createElement('input'); pwdInp.type = 'password'; pwdInp.value = emp.password;
-            const lvlCell = row.insertCell(3);
-            const lvlSel = document.createElement('select');
+            const nameCell = row.insertCell(0); const nameInp = document.createElement('input'); nameInp.value = emp.full_name;
+            const posCell = row.insertCell(1); const posInp = document.createElement('input'); posInp.value = emp.position;
+            const pwdCell = row.insertCell(2); const pwdInp = document.createElement('input'); pwdInp.type = 'password'; pwdInp.value = emp.password;
+            const lvlCell = row.insertCell(3); const lvlSel = document.createElement('select');
             for (let i=1;i<=5;i++) { let o=document.createElement('option'); o.value=i; o.textContent=i; if(emp.level==i) o.selected=true; lvlSel.appendChild(o); }
-            const adminCell = row.insertCell(4);
-            const chk = document.createElement('input'); chk.type='checkbox'; chk.checked = emp.is_admin === 'TRUE' || emp.is_admin === true;
+            const adminCell = row.insertCell(4); const chk = document.createElement('input'); chk.type='checkbox'; chk.checked = emp.is_admin === true;
             const actCell = row.insertCell(5);
             const saveBtn = document.createElement('button'); saveBtn.textContent='💾'; saveBtn.className='save-user-btn';
             saveBtn.onclick = () => updateEmployee(emp.id, nameInp.value, posInp.value, pwdInp.value, lvlSel.value, chk.checked);
@@ -303,7 +273,7 @@
         if (!fullname || !password) { showToast("Введите ФИО и пароль", true); return; }
         document.getElementById('loginBtn').disabled = true;
         document.getElementById('loginBtn').textContent = 'ВХОД...';
-        await fetchEmployees(true);
+        await fetchEmployees();
         const user = employees.find(e => e.full_name === fullname && e.password === password);
         if (!user) { showToast("Неверные данные", true); document.getElementById('loginBtn').disabled = false; document.getElementById('loginBtn').textContent = 'ВОЙТИ'; return; }
         currentUser = user;
@@ -313,20 +283,29 @@
         document.getElementById('loginCard').classList.add('hidden');
         document.getElementById('mainInterface').classList.remove('hidden');
         document.getElementById('userInfo').innerHTML = `<span>👤 ${currentUser.full_name} | ${currentUser.position} | Уровень ${currentUser.level}</span><button class="logout-btn" id="logoutBtn">🚪 Выйти</button>`;
-        document.getElementById('logoutBtn').onclick = () => { currentUser = null; document.getElementById('mainInterface').classList.add('hidden'); document.getElementById('loginCard').classList.remove('hidden'); document.getElementById('loginFullname').value = ''; document.getElementById('loginPassword').value = ''; };
-        const isAdmin = (currentUser.is_admin === 'TRUE' || currentUser.is_admin === true);
+        document.getElementById('logoutBtn').onclick = () => { currentUser = null; document.getElementById('mainInterface').classList.add('hidden'); document.getElementById('loginCard').classList.remove('hidden'); };
+        const isAdmin = currentUser.is_admin === true;
         document.getElementById('adminPanel').classList.toggle('hidden', !isAdmin);
         if (isAdmin) renderAdminTable();
-        await fetchChat(true);
+        await fetchChat();
+        startAutoRefresh();
         document.getElementById('loginBtn').disabled = false;
         document.getElementById('loginBtn').textContent = 'ВОЙТИ';
-        startAutoRefresh();
     }
 
     let refreshInterval = null;
     function startAutoRefresh() {
         if (refreshInterval) clearInterval(refreshInterval);
-        refreshInterval = setInterval(() => { if (currentUser) { fetchChat(); if (currentUser.is_admin) fetchEmployees(); } }, 8000);
+        refreshInterval = setInterval(() => { if (currentUser) { fetchChat(); if (currentUser.is_admin) fetchEmployees(); } }, 5000);
+    }
+
+    function showToast(msg, isErr = false) {
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.style.borderLeftColor = isErr ? '#ff7a5e' : '#4bffc3';
+        toast.innerText = msg;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2500);
     }
 
     function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
