@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>EPLS | Сотрудники и чат</title>
+    <title>EPLS | Система авторизации сотрудников</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            user-select: none;
         }
 
         body {
@@ -17,7 +18,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            font-family: 'Segoe UI', 'Courier New', 'Fira Code', monospace;
+            font-family: 'Segoe UI', 'Courier New', 'Fira Code', 'Monaco', monospace;
             padding: 1.5rem;
             position: relative;
             animation: bgPulse 8s ease-in-out infinite;
@@ -28,254 +29,308 @@
             50% { background: radial-gradient(circle at 70% 60%, #0e2a24, #021010); }
         }
 
-        /* главный контейнер */
-        .dashboard {
-            max-width: 1300px;
+        /* Основной контейнер */
+        .epls-container {
+            max-width: 900px;
             width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
         }
 
-        /* единый стиль карточек */
-        .card {
+        /* Терминал */
+        .epuls-panel {
+            width: 100%;
             background: linear-gradient(145deg, #0a191c 0%, #031113 100%);
-            border-radius: 1.8rem;
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(20, 130, 100, 0.25);
+            backdrop-filter: blur(1px);
             border: 1px solid rgba(30, 180, 140, 0.5);
-            box-shadow: 0 25px 35px rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(2px);
-            overflow: hidden;
+            transition: filter 0.2s;
         }
 
-        .card-header {
-            padding: 1rem 1.8rem;
-            background: rgba(0, 30, 28, 0.7);
+        .ep-header {
+            padding: 1rem 2rem;
             border-bottom: 1px solid rgba(40, 200, 150, 0.4);
+            background: rgba(0, 30, 28, 0.7);
+            border-radius: 2rem 2rem 0 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 0.8rem;
+            gap: 0.5rem;
         }
 
-        .card-header h2 {
-            font-size: 1.2rem;
+        .sys-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sys-icon {
+            font-size: 1.8rem;
+            animation: iconPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes iconPulse {
+            0%, 100% { filter: drop-shadow(0 0 3px #1ccfaa); transform: scale(1); }
+            50% { filter: drop-shadow(0 0 10px #3effc3); transform: scale(1.05); }
+        }
+
+        .sys-title {
+            font-size: 1.3rem;
             font-weight: 600;
+            letter-spacing: 2px;
             background: linear-gradient(135deg, #b0ffea, #3dd68c);
             background-clip: text;
             -webkit-background-clip: text;
             color: transparent;
-            letter-spacing: 1.5px;
         }
 
-        .badge-led {
+        .status-led {
             display: flex;
             align-items: center;
             gap: 8px;
             font-size: 0.7rem;
             background: #031e1b;
-            padding: 4px 12px;
+            padding: 5px 12px;
             border-radius: 30px;
             color: #adeee1;
         }
 
         .led {
-            width: 9px;
-            height: 9px;
-            background-color: #2affb6;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            animation: pulseGreen 1.5s infinite;
+            background-color: #2affb6;
+            animation: blink 1s step-end infinite;
         }
 
-        @keyframes pulseGreen {
-            0% { opacity: 0.4; box-shadow: 0 0 0 0 #3affb0; }
-            100% { opacity: 1; box-shadow: 0 0 0 4px rgba(50, 255, 170, 0); }
+        .ep-content {
+            padding: 2rem;
         }
 
-        .card-content {
-            padding: 1.5rem 1.8rem;
+        /* Форма регистрации */
+        .register-form {
+            background: rgba(2, 16, 18, 0.7);
+            backdrop-filter: blur(5px);
+            border-radius: 1.5rem;
+            padding: 1.8rem;
+            border: 1px solid #1d8a73;
+            margin-bottom: 2rem;
         }
 
-        /* форма регистрации */
-        .reg-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
+        .form-title {
+            font-size: 1.2rem;
+            color: #3effbc;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        .form-group {
             margin-bottom: 1.2rem;
         }
-        .reg-field {
-            flex: 1;
-            min-width: 180px;
-        }
-        .reg-field label {
-            font-size: 0.65rem;
-            color: #7adbc2;
+
+        .form-group label {
             display: block;
-            margin-bottom: 4px;
+            font-size: 0.7rem;
+            color: #7adbc2;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
         }
-        .reg-field input {
+
+        .form-group input, .form-group select {
             width: 100%;
             background: #02221f;
             border: 1px solid #2f9d80;
-            padding: 10px 12px;
-            border-radius: 14px;
-            font-size: 0.9rem;
-            font-family: monospace;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'Courier New', monospace;
             color: #dcffee;
             outline: none;
+            transition: 0.2s;
         }
-        .reg-field input:focus {
+
+        .form-group input:focus, .form-group select:focus {
             border-color: #7aeecb;
-            box-shadow: 0 0 8px #36e0b0;
+            box-shadow: 0 0 10px #36e0b0;
         }
-        .btn-primary {
+
+        .form-group select option {
+            background: #02221f;
+            color: #dcffee;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .submit-btn {
             background: #1b7b63b3;
             border: 1px solid #5cefc2;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 40px;
             font-family: monospace;
             font-weight: bold;
+            font-size: 0.9rem;
             color: #f0fff5;
             cursor: pointer;
-            transition: 0.2s;
-            font-size: 0.85rem;
-            margin-top: 20px;
             width: 100%;
+            transition: all 0.2s;
+            margin-top: 0.5rem;
         }
-        .btn-primary:hover {
+
+        .submit-btn:hover {
             background: #259e7ed9;
             box-shadow: 0 0 12px #27e6b0;
             transform: scale(1.01);
         }
 
-        /* таблица сотрудников (админ) */
-        .employees-table-wrapper {
-            overflow-x: auto;
+        /* Список сотрудников */
+        .employees-section {
+            background: rgba(2, 16, 18, 0.5);
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            border: 1px solid #1d8a73;
         }
-        .emp-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.8rem;
+
+        .section-title {
+            font-size: 1rem;
+            color: #3effbc;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
-        .emp-table th, .emp-table td {
-            padding: 12px 8px;
-            text-align: left;
-            border-bottom: 1px solid #1d6b5a;
-            color: #d2f0e6;
+
+        .employees-list {
+            max-height: 300px;
+            overflow-y: auto;
         }
-        .emp-table th {
-            color: #6effcf;
-            font-weight: 600;
+
+        .employee-card {
+            background: #041f1bb3;
+            border-radius: 12px;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            border-left: 3px solid #32b894;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            transition: 0.2s;
+        }
+
+        .employee-card:hover {
+            background: #06352eb3;
+            transform: translateX(3px);
+        }
+
+        .employee-info {
+            flex: 2;
+        }
+
+        .employee-name {
+            font-weight: bold;
+            color: #e1fff0;
+            font-size: 0.95rem;
+        }
+
+        .employee-meta {
+            display: flex;
+            gap: 15px;
             font-size: 0.7rem;
-            letter-spacing: 1px;
+            color: #7adbc2;
+            margin-top: 4px;
+            flex-wrap: wrap;
         }
-        .level-select, .role-input {
+
+        .employee-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .level-select {
             background: #02221f;
             border: 1px solid #2f9d80;
-            padding: 6px 8px;
+            padding: 5px 8px;
             border-radius: 20px;
-            font-family: monospace;
             font-size: 0.7rem;
+            font-family: monospace;
             color: #dcffee;
-            width: 100%;
-            min-width: 100px;
         }
-        .save-level-btn {
+
+        .role-select {
+            background: #02221f;
+            border: 1px solid #2f9d80;
+            padding: 5px 8px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-family: monospace;
+            color: #dcffee;
+        }
+
+        .save-user-btn {
             background: transparent;
             border: 1px solid #2fa984;
-            padding: 5px 10px;
+            padding: 5px 12px;
             border-radius: 20px;
             font-size: 0.65rem;
             color: #c0f3e4;
             cursor: pointer;
+            transition: 0.2s;
         }
-        .delete-btn {
+
+        .save-user-btn:hover {
+            background: #1b6e5a60;
+            border-color: #6affcf;
+        }
+
+        .delete-user-btn {
             background: transparent;
             border: 1px solid #a9452f;
-            padding: 5px 10px;
+            padding: 5px 12px;
             border-radius: 20px;
             font-size: 0.65rem;
             color: #ffb7a4;
             cursor: pointer;
-        }
-        .badge-level {
-            display: inline-block;
-            background: #0f2f2a;
-            padding: 4px 12px;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            font-weight: bold;
+            transition: 0.2s;
         }
 
-        /* ДВУХКОЛОНОЧНЫЙ ЧАТ */
-        .chat-row {
-            display: flex;
-            gap: 1.5rem;
-            flex-wrap: wrap;
+        .delete-user-btn:hover {
+            background: #6e2e1b60;
+            border-color: #ff7a5e;
         }
-        .chat-col {
-            flex: 1;
-            min-width: 250px;
-            background: rgba(2, 16, 18, 0.6);
-            border-radius: 1.4rem;
-            backdrop-filter: blur(3px);
-            padding: 0.2rem;
+
+        .user-status {
+            font-size: 0.6rem;
+            padding: 3px 8px;
+            border-radius: 20px;
+            background: #0a2a25;
         }
-        .chat-messages {
-            height: 280px;
-            overflow-y: auto;
-            padding: 0.8rem;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+
+        .status-active {
+            color: #3effbc;
         }
-        .message {
-            background: #031f1cb3;
-            border-left: 3px solid #3bcba0;
-            border-radius: 12px;
-            padding: 8px 12px;
-            font-size: 0.8rem;
-        }
-        .message .author {
-            color: #8effdb;
-            font-weight: bold;
-            font-size: 0.7rem;
-        }
-        .message .text {
-            color: #e0fff2;
-            word-break: break-word;
-            margin-top: 4px;
-        }
-        .chat-input-area {
-            display: flex;
-            gap: 8px;
-            padding: 0.8rem;
-            border-top: 1px solid #2f7a6a;
-        }
-        .chat-input {
-            flex: 1;
-            background: #02221f;
-            border: 1px solid #2f9d80;
-            padding: 10px 12px;
-            border-radius: 28px;
-            font-family: monospace;
-            color: #dcffee;
-            outline: none;
-        }
-        .chat-send {
-            background: #1b7b63b3;
-            border: none;
-            padding: 0 20px;
-            border-radius: 40px;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .empty-chat {
+
+        .empty-list {
             text-align: center;
             color: #5aa694;
             padding: 20px;
+            font-size: 0.8rem;
         }
+
+        /* Всплывающие уведомления */
         .toast {
             position: fixed;
             bottom: 30px;
@@ -285,403 +340,342 @@
             backdrop-filter: blur(12px);
             border-left: 4px solid #4bffc3;
             border-radius: 20px;
-            padding: 10px 22px;
-            font-size: 0.8rem;
+            padding: 12px 24px;
+            font-size: 0.85rem;
             color: #e1ffef;
-            z-index: 1200;
-            animation: fadeUp 0.2s ease;
+            z-index: 1100;
+            animation: slideUp 0.25s ease-out;
+            text-align: center;
             white-space: nowrap;
         }
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateX(-50%) translateY(20px);}
-            to { opacity: 1; transform: translateX(-50%) translateY(0);}
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
-        .footer-note {
-            font-size: 0.55rem;
+
+        .footer {
+            margin-top: 1.5rem;
             text-align: center;
+            font-size: 0.55rem;
             color: #2e8d74;
-            margin-top: 0.5rem;
         }
-        @media (max-width: 850px) {
-            .card-content { padding: 1rem; }
-            .emp-table th, .emp-table td { font-size: 0.7rem; }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #031e1b;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #2e9f85;
+            border-radius: 10px;
+        }
+
+        @media (max-width: 650px) {
+            .ep-content { padding: 1.2rem; }
+            .employee-card { flex-direction: column; align-items: stretch; }
+            .employee-controls { justify-content: flex-start; }
             .toast { white-space: normal; width: 90%; text-align: center; }
         }
     </style>
 </head>
 <body>
-<div class="dashboard">
-    <!-- Карточка регистрации (пользователь сам вводит ФИО, должность и пароль) -->
-    <div class="card">
-        <div class="card-header">
-            <h2>🔐 РЕГИСТРАЦИЯ В СЕТИ EPLS</h2>
-            <div class="badge-led"><span class="led"></span> ОТКРЫТАЯ СЕТЬ</div>
-        </div>
-        <div class="card-content">
-            <div class="reg-grid">
-                <div class="reg-field">
-                    <label>ФИО</label>
-                    <input type="text" id="regFullname" placeholder="Иванов Иван Иванович" autocomplete="off">
-                </div>
-                <div class="reg-field">
-                    <label>Должность (введите сами)</label>
-                    <input type="text" id="regPosition" placeholder="Инженер-исследователь, Оператор и т.д." autocomplete="off">
-                </div>
-                <div class="reg-field">
-                    <label>Пароль</label>
-                    <input type="password" id="regPassword" placeholder="секретный ключ" autocomplete="off">
-                </div>
+
+<div class="epls-container">
+    <div class="epuls-panel" id="eplsPanel">
+        <div class="ep-header">
+            <div class="sys-badge">
+                <span class="sys-icon">⚡⎔</span>
+                <span class="sys-title">EPLS // Управление персоналом</span>
             </div>
-            <button class="btn-primary" id="registerBtn">➕ ДОБАВИТЬ В СЕТЬ</button>
+            <div class="status-led">
+                <span class="led"></span>
+                <span>СЕТЬ АКТИВНА</span>
+            </div>
         </div>
-    </div>
 
-    <!-- Административная панель: список сотрудников, уровни допуска 1-5, редактирование должностей и уровня -->
-    <div class="card">
-        <div class="card-header">
-            <h2>👥 СПИСОК СОТРУДНИКОВ (Уровни доступа 1-5)</h2>
-            <div class="badge-led"><span class="led"></span> АДМИН-ПАНЕЛЬ</div>
-        </div>
-        <div class="card-content employees-table-wrapper">
-            <table class="emp-table" id="empTable">
-                <thead>
-                    <tr><th>ФИО</th><th>Должность</th><th>Уровень доступа</th><th>Действия</th></tr>
-                </thead>
-                <tbody id="empTableBody"></tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Чат запросов (двусторонний: сотрудники и администратор) -->
-    <div class="card">
-        <div class="card-header">
-            <h2>💬 ЧАТ ЗАПРОСОВ И ОТВЕТОВ</h2>
-            <div class="badge-led"><span class="led"></span> ОНЛАЙН</div>
-        </div>
-        <div class="card-content">
-            <div class="chat-row">
-                <!-- общий чат - все сообщения -->
-                <div class="chat-col">
-                    <div style="font-size: 0.7rem; padding: 8px 12px; color: #6bc7ae;">ОБЩИЙ ЧАТ</div>
-                    <div id="chatMessages" class="chat-messages">
-                        <div class="empty-chat">Нет сообщений. Напишите что-нибудь...</div>
+        <div class="ep-content">
+            <!-- Форма регистрации нового сотрудника -->
+            <div class="register-form">
+                <div class="form-title">🔐 РЕГИСТРАЦИЯ СОТРУДНИКА</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>ФИО</label>
+                        <input type="text" id="fullName" placeholder="Иванов Иван Иванович" autocomplete="off">
                     </div>
-                    <div class="chat-input-area">
-                        <input type="text" id="chatInput" class="chat-input" placeholder="Ваше сообщение (запрос или ответ)">
-                        <button id="sendChatBtn" class="chat-send">➤</button>
+                    <div class="form-group">
+                        <label>Должность</label>
+                        <input type="text" id="position" placeholder="Инженер, Оператор, Аналитик..." autocomplete="off">
                     </div>
                 </div>
+                <div class="form-group">
+                    <label>Пароль доступа</label>
+                    <input type="password" id="password" placeholder="Введите пароль" autocomplete="off">
+                </div>
+                <button class="submit-btn" id="registerBtn">➕ ДОБАВИТЬ В СЕТЬ</button>
             </div>
-            <div class="footer-note">Все сотрудники и администратор видят чат. Для ответа используйте ник в начале сообщения.</div>
+
+            <!-- Список сотрудников (админ-панель) -->
+            <div class="employees-section">
+                <div class="section-title">
+                    <span>📋 СОТРУДНИКИ В СЕТИ</span>
+                    <span style="font-size: 0.65rem;" id="employeeCount">0 человек</span>
+                </div>
+                <div class="employees-list" id="employeesList">
+                    <div class="empty-list">Нет добавленных сотрудников</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            EPLS | Сеть сотрудников — управление уровнями допуска и должностями
         </div>
     </div>
 </div>
 
 <script>
-    // ------------------ СИСТЕМА ХРАНЕНИЯ ------------------
-    const STORAGE_EMPLOYEES = 'epls_employees_v2';
-    const STORAGE_CHAT = 'epls_chat_messages';
+    (function() {
+        // Ключ для localStorage
+        const STORAGE_KEY = 'epls_employees';
 
-    let employees = [];     // { id, fullName, position, password, level (1-5), roleCustom (должность как строка) }
-    let chatMessages = [];  // { author, text, timestamp, authorId }
+        // Загрузка сотрудников из localStorage
+        let employees = [];
 
-    // ----- инициализация данных -----
-    function loadData() {
-        const storedEmp = localStorage.getItem(STORAGE_EMPLOYEES);
-        if (storedEmp) {
-            try {
-                employees = JSON.parse(storedEmp);
-            } catch(e) { employees = []; }
-        }
-        if (!employees || employees.length === 0) {
-            // демо-администратор (невидимый в таблице, но для примера)
-            employees = [
-                { id: "admin_demo", fullName: "Администратор EPLS", position: "Системный администратор", password: "admin123", level: 5, roleCustom: "Глава отдела", isAdmin: true },
-                { id: "emp1", fullName: "Алексей Смирнов", position: "Техник-исследователь", password: "pass1", level: 2, roleCustom: "Техник", isAdmin: false },
-                { id: "emp2", fullName: "Елена Ветрова", position: "Аналитик", password: "pass2", level: 3, roleCustom: "Аналитик", isAdmin: false }
-            ];
-            saveEmployees();
-        }
-        // фильтруем, чтобы поле level было числом 1-5
-        employees.forEach(emp => {
-            if (typeof emp.level !== 'number') emp.level = 1;
-            if (emp.level < 1) emp.level = 1;
-            if (emp.level > 5) emp.level = 5;
-            if (!emp.roleCustom) emp.roleCustom = emp.position || "Сотрудник";
-        });
-
-        const storedChat = localStorage.getItem(STORAGE_CHAT);
-        if (storedChat) {
-            try {
-                chatMessages = JSON.parse(storedChat);
-            } catch(e) { chatMessages = []; }
-        }
-        if (!chatMessages || chatMessages.length === 0) {
-            chatMessages = [
-                { id: "init1", author: "Система", text: "Чат активен. Пишите запросы администратору.", timestamp: Date.now(), authorId: "system" }
-            ];
-            saveChat();
-        }
-    }
-
-    function saveEmployees() {
-        localStorage.setItem(STORAGE_EMPLOYEES, JSON.stringify(employees));
-        renderEmployeesTable();
-    }
-
-    function saveChat() {
-        localStorage.setItem(STORAGE_CHAT, JSON.stringify(chatMessages));
-        renderChat();
-    }
-
-    // ---- вспомогательные ----
-    function showToast(msg, isErr = false) {
-        const existing = document.querySelector('.toast');
-        if(existing) existing.remove();
-        const toast = document.createElement('div');
-        toast.className = 'toast';
-        toast.style.borderLeftColor = isErr ? '#ff7a5e' : '#4bffc3';
-        toast.innerText = msg;
-        document.body.appendChild(toast);
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            setTimeout(() => toast.remove(), 500);
-        }, 3000);
-    }
-
-    function generateId() {
-        return Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
-    }
-
-    // регистрация нового сотрудника (ФИО, должность(любая строка), пароль)
-    function registerEmployee(fullName, positionRaw, password) {
-        if (!fullName.trim()) { showToast("❌ Введите ФИО", true); return false; }
-        if (!positionRaw.trim()) { showToast("❌ Введите должность", true); return false; }
-        if (!password.trim()) { showToast("❌ Введите пароль", true); return false; }
-        const exists = employees.find(emp => emp.fullName.toLowerCase() === fullName.trim().toLowerCase());
-        if (exists) { showToast("❌ Сотрудник с таким ФИО уже есть", true); return false; }
-
-        const newEmp = {
-            id: generateId(),
-            fullName: fullName.trim(),
-            position: positionRaw.trim(),
-            password: password.trim(),
-            level: 1,                      // начальный уровень 1
-            roleCustom: positionRaw.trim(),
-            isAdmin: false,
-            registeredAt: Date.now()
-        };
-        employees.push(newEmp);
-        saveEmployees();
-        showToast(`✅ ${fullName} добавлен в сеть. Уровень допуска: 1 (администратор может повысить)`);
-        return true;
-    }
-
-    // удалить сотрудника
-    function deleteEmployeeById(id) {
-        const emp = employees.find(e => e.id === id);
-        if (!emp) return;
-        if (emp.isAdmin) { showToast("Нельзя удалить главного администратора", true); return; }
-        if (confirm(`Удалить ${emp.fullName} из сети?`)) {
-            employees = employees.filter(e => e.id !== id);
-            saveEmployees();
-            showToast(`🗑️ ${emp.fullName} удалён`);
-        }
-    }
-
-    // обновить уровень (1-5) и должность (пользователь ввел свою строку, но админ может редактировать)
-    function updateEmployeeData(id, newLevel, newRoleCustom) {
-        const emp = employees.find(e => e.id === id);
-        if (!emp) return;
-        let levelNum = parseInt(newLevel, 10);
-        if (isNaN(levelNum)) levelNum = 1;
-        levelNum = Math.min(5, Math.max(1, levelNum));
-        emp.level = levelNum;
-        if (newRoleCustom && newRoleCustom.trim() !== "") emp.roleCustom = newRoleCustom.trim();
-        else emp.roleCustom = emp.position;
-        saveEmployees();
-        showToast(`📌 ${emp.fullName}: уровень доступа ${emp.level}, должность "${emp.roleCustom}"`);
-    }
-
-    // отрисовка таблицы сотрудников (только для администратора — здесь все видят, но по факту я сотрудник)
-    function renderEmployeesTable() {
-        const tbody = document.getElementById('empTableBody');
-        if (!tbody) return;
-        if (!employees.length) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center">Нет сотрудников</td></tr>`;
-            return;
-        }
-        tbody.innerHTML = '';
-        employees.forEach(emp => {
-            if (emp.isAdmin && emp.fullName === "Администратор EPLS") {
-                // покажем админа в таблице для наглядности, но запретим удаление
+        function loadEmployees() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    employees = JSON.parse(saved);
+                } catch(e) { employees = []; }
             }
-            const row = tbody.insertRow();
-            // ФИО
-            const cellName = row.insertCell(0);
-            cellName.innerText = emp.fullName;
-            // Должность (редактируемая)
-            const cellRole = row.insertCell(1);
-            const roleInput = document.createElement('input');
-            roleInput.type = 'text';
-            roleInput.value = emp.roleCustom || emp.position;
-            roleInput.className = 'role-input';
-            roleInput.style.width = '130px';
-            // уровень допуска select 1-5
-            const cellLevel = row.insertCell(2);
-            const selectLevel = document.createElement('select');
-            selectLevel.className = 'level-select';
-            for (let i = 1; i <= 5; i++) {
-                const opt = document.createElement('option');
-                opt.value = i;
-                opt.textContent = i;
-                if (emp.level === i) opt.selected = true;
-                selectLevel.appendChild(opt);
+            if (!employees.length) {
+                // Демо-сотрудник для примера
+                employees = [
+                    {
+                        id: '1',
+                        fullName: 'Системный Администратор',
+                        position: 'Главный инженер',
+                        password: 'admin123',
+                        level: 'КРИТИЧЕСКИЙ',
+                        role: 'Руководитель отдела',
+                        createdAt: new Date().toISOString()
+                    }
+                ];
+                saveEmployees();
             }
-            // кнопка сохранить уровень+должность
-            const saveBtn = document.createElement('button');
-            saveBtn.innerText = '💾 Применить';
-            saveBtn.className = 'save-level-btn';
-            saveBtn.onclick = () => {
-                const newLvl = selectLevel.value;
-                const newRoleCustom = roleInput.value;
-                updateEmployeeData(emp.id, newLvl, newRoleCustom);
+            renderEmployees();
+        }
+
+        function saveEmployees() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(employees));
+            updateCount();
+        }
+
+        function updateCount() {
+            const countSpan = document.getElementById('employeeCount');
+            if (countSpan) countSpan.innerText = employees.length + ' человек';
+        }
+
+        function showToast(message, isError = false) {
+            const existing = document.querySelector('.toast');
+            if(existing) existing.remove();
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.borderLeftColor = isError ? '#ff7a5e' : '#4bffc3';
+            toast.innerHTML = message;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 500);
+            }, 3000);
+        }
+
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        function addEmployee(fullName, position, password) {
+            if (!fullName.trim()) {
+                showToast('❌ Введите ФИО', true);
+                return false;
+            }
+            if (!position.trim()) {
+                showToast('❌ Введите должность', true);
+                return false;
+            }
+            if (!password.trim()) {
+                showToast('❌ Введите пароль', true);
+                return false;
+            }
+
+            // Проверка на уникальность ФИО
+            const existing = employees.find(emp => emp.fullName.toLowerCase() === fullName.trim().toLowerCase());
+            if (existing) {
+                showToast('❌ Сотрудник с таким ФИО уже существует', true);
+                return false;
+            }
+
+            const newEmployee = {
+                id: generateId(),
+                fullName: fullName.trim(),
+                position: position.trim(),
+                password: password.trim(),
+                level: 'НАЧАЛЬНЫЙ',      // Уровень допуска по умолчанию
+                role: 'Сотрудник',        // Должность в иерархии
+                createdAt: new Date().toISOString()
             };
-            // кнопка удалить (кроме админа)
-            const cellActions = row.insertCell(3);
-            const delBtn = document.createElement('button');
-            delBtn.innerText = '🗑️ Удалить';
-            delBtn.className = 'delete-btn';
-            delBtn.onclick = () => deleteEmployeeById(emp.id);
-            if (emp.isAdmin && emp.fullName === "Администратор EPLS") delBtn.disabled = true;
-            cellActions.appendChild(saveBtn);
-            cellActions.appendChild(delBtn);
-            cellLevel.appendChild(selectLevel);
-            cellRole.appendChild(roleInput);
+
+            employees.push(newEmployee);
+            saveEmployees();
+            renderEmployees();
+            showToast(`✅ ${fullName} добавлен в сеть. Уровень: НАЧАЛЬНЫЙ`);
+            return true;
+        }
+
+        function deleteEmployee(id) {
+            const employee = employees.find(emp => emp.id === id);
+            if (employee && confirm(`Удалить сотрудника "${employee.fullName}" из сети?`)) {
+                employees = employees.filter(emp => emp.id !== id);
+                saveEmployees();
+                renderEmployees();
+                showToast(`🗑️ Сотрудник удалён`);
+            }
+        }
+
+        function updateEmployee(id, newLevel, newRole) {
+            const employee = employees.find(emp => emp.id === id);
+            if (employee) {
+                employee.level = newLevel;
+                employee.role = newRole;
+                saveEmployees();
+                renderEmployees();
+                showToast(`📌 ${employee.fullName}: уровень "${newLevel}", должность "${newRole}"`);
+            }
+        }
+
+        function renderEmployees() {
+            const container = document.getElementById('employeesList');
+            if (!container) return;
+
+            if (employees.length === 0) {
+                container.innerHTML = '<div class="empty-list">Нет добавленных сотрудников</div>';
+                updateCount();
+                return;
+            }
+
+            container.innerHTML = '';
+            employees.forEach(emp => {
+                const card = document.createElement('div');
+                card.className = 'employee-card';
+
+                // Информация о сотруднике
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'employee-info';
+                infoDiv.innerHTML = `
+                    <div class="employee-name">${escapeHtml(emp.fullName)}</div>
+                    <div class="employee-meta">
+                        <span>📌 ${escapeHtml(emp.position)}</span>
+                        <span>🔐 Пароль: ${'•'.repeat(Math.min(emp.password.length, 8))}</span>
+                        <span>🆔 ID: ${emp.id.slice(-6)}</span>
+                    </div>
+                `;
+
+                // Управление уровнями и должностями
+                const controlsDiv = document.createElement('div');
+                controlsDiv.className = 'employee-controls';
+
+                // Выбор уровня допуска
+                const levelSelect = document.createElement('select');
+                levelSelect.className = 'level-select';
+                const levels = ['НАЧАЛЬНЫЙ', 'БАЗОВЫЙ', 'ПОВЫШЕННЫЙ', 'ВЫСОКИЙ', 'КРИТИЧЕСКИЙ'];
+                levels.forEach(lvl => {
+                    const option = document.createElement('option');
+                    option.value = lvl;
+                    option.textContent = lvl;
+                    if (emp.level === lvl) option.selected = true;
+                    levelSelect.appendChild(option);
+                });
+
+                // Выбор должности
+                const roleSelect = document.createElement('select');
+                roleSelect.className = 'role-select';
+                const roles = ['Сотрудник', 'Специалист', 'Ведущий специалист', 'Руководитель отдела', 'Зам. директора', 'Директор'];
+                roles.forEach(rl => {
+                    const option = document.createElement('option');
+                    option.value = rl;
+                    option.textContent = rl;
+                    if (emp.role === rl) option.selected = true;
+                    roleSelect.appendChild(option);
+                });
+
+                const saveBtn = document.createElement('button');
+                saveBtn.className = 'save-user-btn';
+                saveBtn.textContent = '💾 Сохранить';
+                saveBtn.onclick = () => {
+                    updateEmployee(emp.id, levelSelect.value, roleSelect.value);
+                };
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-user-btn';
+                deleteBtn.textContent = '🗑️ Удалить';
+                deleteBtn.onclick = () => deleteEmployee(emp.id);
+
+                controlsDiv.appendChild(levelSelect);
+                controlsDiv.appendChild(roleSelect);
+                controlsDiv.appendChild(saveBtn);
+                controlsDiv.appendChild(deleteBtn);
+
+                card.appendChild(infoDiv);
+                card.appendChild(controlsDiv);
+                container.appendChild(card);
+            });
+
+            updateCount();
+        }
+
+        // Простая защита от XSS
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        // Обработка регистрации
+        document.getElementById('registerBtn').addEventListener('click', () => {
+            const fullName = document.getElementById('fullName').value;
+            const position = document.getElementById('position').value;
+            const password = document.getElementById('password').value;
+            if (addEmployee(fullName, position, password)) {
+                document.getElementById('fullName').value = '';
+                document.getElementById('position').value = '';
+                document.getElementById('password').value = '';
+            }
         });
-    }
 
-    // ------------- ЧАТ -------------
-    function addChatMessage(author, text, authorId = null) {
-        if (!text.trim()) return;
-        const newMsg = {
-            id: generateId(),
-            author: author.trim(),
-            text: text.trim(),
-            timestamp: Date.now(),
-            authorId: authorId || 'unknown'
-        };
-        chatMessages.push(newMsg);
-        if (chatMessages.length > 150) chatMessages = chatMessages.slice(-150);
-        saveChat();
-    }
-
-    function renderChat() {
-        const container = document.getElementById('chatMessages');
-        if (!container) return;
-        if (!chatMessages.length) {
-            container.innerHTML = '<div class="empty-chat">Нет сообщений. Напишите запрос.</div>';
-            return;
-        }
-        container.innerHTML = '';
-        chatMessages.forEach(msg => {
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'message';
-            const time = new Date(msg.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-            msgDiv.innerHTML = `<div class="author">${escapeHtml(msg.author)} <span style="color:#5a9e8a;">${time}</span></div>
-                                <div class="text">${escapeHtml(msg.text)}</div>`;
-            container.appendChild(msgDiv);
+        // Добавим возможность нажать Enter
+        const inputs = ['fullName', 'position', 'password'];
+        inputs.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        document.getElementById('registerBtn').click();
+                    }
+                });
+            }
         });
-        container.scrollTop = container.scrollHeight;
-    }
 
-    function escapeHtml(str) {
-        if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        });
-    }
-
-    // получение текущего "автора" — можно ввести имя вручную (админ/сотрудник)
-    // сделаем простой prompt для идентификации при первом сообщении, но можно и через localStorage
-    let currentChatAuthor = localStorage.getItem('epls_chat_author');
-    if (!currentChatAuthor) {
-        currentChatAuthor = prompt("Представьтесь для чата (ФИО или позывной):", "Сотрудник");
-        if (!currentChatAuthor) currentChatAuthor = "Гость";
-        localStorage.setItem('epls_chat_author', currentChatAuthor);
-    }
-
-    function sendMessageFromUI() {
-        const input = document.getElementById('chatInput');
-        const msgText = input.value.trim();
-        if (!msgText) return;
-        addChatMessage(currentChatAuthor, msgText, currentChatAuthor);
-        input.value = '';
-    }
-
-    // ---------- ИНИЦИАЛИЗАЦИЯ UI и обработчиков ----------
-    document.getElementById('registerBtn').addEventListener('click', () => {
-        const full = document.getElementById('regFullname').value;
-        const pos = document.getElementById('regPosition').value;
-        const pwd = document.getElementById('regPassword').value;
-        if (registerEmployee(full, pos, pwd)) {
-            document.getElementById('regFullname').value = '';
-            document.getElementById('regPosition').value = '';
-            document.getElementById('regPassword').value = '';
-        }
-    });
-    document.getElementById('sendChatBtn').addEventListener('click', sendMessageFromUI);
-    document.getElementById('chatInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessageFromUI();
-    });
-
-    // кнопка смены автора чата (если нужно)
-    const changeAuthorBtn = document.createElement('button');
-    changeAuthorBtn.innerText = '🔄 Сменить имя в чате';
-    changeAuthorBtn.style.background = 'transparent';
-    changeAuthorBtn.style.border = '1px solid #2fa984';
-    changeAuthorBtn.style.padding = '4px 12px';
-    changeAuthorBtn.style.borderRadius = '30px';
-    changeAuthorBtn.style.fontSize = '0.6rem';
-    changeAuthorBtn.style.color = '#bbf0e0';
-    changeAuthorBtn.style.cursor = 'pointer';
-    changeAuthorBtn.onclick = () => {
-        const newName = prompt("Введите новое отображаемое имя для чата:", currentChatAuthor);
-        if (newName && newName.trim()) {
-            currentChatAuthor = newName.trim();
-            localStorage.setItem('epls_chat_author', currentChatAuthor);
-            showToast(`Имя в чате изменено на ${currentChatAuthor}`);
-        }
-    };
-    const chatHeader = document.querySelector('.chat-col');
-    if (chatHeader) {
-        const actionsDiv = document.createElement('div');
-        actionsDiv.style.display = 'flex';
-        actionsDiv.style.justifyContent = 'flex-end';
-        actionsDiv.style.padding = '0px 12px 6px';
-        actionsDiv.appendChild(changeAuthorBtn);
-        chatHeader.parentNode.insertBefore(actionsDiv, chatHeader.nextSibling);
-    }
-
-    // первоначальная загрузка
-    loadData();
-    renderEmployeesTable();
-    renderChat();
-
-    // автообновление чата при изменении (сохранение уже есть, но для синхронизации между вкладками)
-    window.addEventListener('storage', (e) => {
-        if (e.key === STORAGE_EMPLOYEES) {
-            const newData = localStorage.getItem(STORAGE_EMPLOYEES);
-            if (newData) { employees = JSON.parse(newData); renderEmployeesTable(); }
-        }
-        if (e.key === STORAGE_CHAT) {
-            const newChat = localStorage.getItem(STORAGE_CHAT);
-            if (newChat) { chatMessages = JSON.parse(newChat); renderChat(); }
-        }
-    });
+        // Загрузка данных при старте
+        loadEmployees();
+    })();
 </script>
 </body>
 </html>
