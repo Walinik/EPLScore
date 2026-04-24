@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>EPLS | Сеть сотрудников</title>
+    <title>EPLS | Корпоративная сеть</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -54,10 +54,48 @@
         }
         @keyframes pulse { 0% { opacity: 0.4; } 100% { opacity: 1; } }
         .card-content { padding: 1.5rem 1.8rem; }
+        
+        /* Форма входа */
+        .login-form {
+            max-width: 400px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        .login-form input {
+            width: 100%;
+            background: #02221f;
+            border: 1px solid #2f9d80;
+            padding: 12px;
+            border-radius: 14px;
+            font-size: 1rem;
+            color: #dcffee;
+            margin-bottom: 1rem;
+        }
+        .login-form button {
+            width: 100%;
+        }
+        .user-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #1d6b5a;
+        }
+        .logout-btn {
+            background: transparent;
+            border: 1px solid #a9452f;
+            padding: 5px 15px;
+            border-radius: 20px;
+            color: #ffb7a4;
+            cursor: pointer;
+        }
         .reg-grid { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 0.5rem; }
         .reg-field { flex: 1; min-width: 180px; }
         .reg-field label { font-size: 0.65rem; color: #7adbc2; display: block; margin-bottom: 4px; }
-        .reg-field input {
+        .reg-field input, .reg-field select {
             width: 100%;
             background: #02221f;
             border: 1px solid #2f9d80;
@@ -67,6 +105,7 @@
             color: #dcffee;
             outline: none;
         }
+        .reg-field select option { background: #02221f; }
         .btn-primary {
             background: #1b7b63b3;
             border: 1px solid #5cefc2;
@@ -77,31 +116,40 @@
             cursor: pointer;
             width: 100%;
         }
-        .employees-table-wrapper { overflow-x: auto; }
-        .emp-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-        .emp-table th, .emp-table td { padding: 12px 8px; text-align: left; border-bottom: 1px solid #1d6b5a; color: #d2f0e6; }
-        .emp-table th { color: #6effcf; font-size: 0.7rem; }
-        .level-select {
-            background: #02221f;
-            border: 1px solid #2f9d80;
-            padding: 6px 8px;
-            border-radius: 20px;
-            color: #dcffee;
-            width: 70px;
-        }
-        .admin-checkbox { transform: scale(1.1); accent-color: #2affb6; cursor: pointer; }
-        .save-level-btn, .delete-btn {
+        .btn-secondary {
             background: transparent;
             border: 1px solid #2fa984;
-            padding: 5px 10px;
-            border-radius: 20px;
+            padding: 8px 16px;
+            border-radius: 40px;
+            color: #c0f3e4;
+            cursor: pointer;
+        }
+        .employees-table-wrapper { overflow-x: auto; }
+        .emp-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .emp-table th, .emp-table td { padding: 10px 6px; text-align: left; border-bottom: 1px solid #1d6b5a; color: #d2f0e6; }
+        .emp-table th { color: #6effcf; font-size: 0.7rem; }
+        .emp-table input, .emp-table select {
+            background: #02221f;
+            border: 1px solid #2f9d80;
+            padding: 5px 8px;
+            border-radius: 12px;
+            color: #dcffee;
+            width: 100%;
+            min-width: 100px;
+        }
+        .admin-checkbox { transform: scale(1.1); accent-color: #2affb6; }
+        .save-user-btn, .delete-btn {
+            background: transparent;
+            border: 1px solid #2fa984;
+            padding: 4px 8px;
+            border-radius: 16px;
             font-size: 0.65rem;
             color: #c0f3e4;
             cursor: pointer;
-            margin-right: 5px;
+            margin: 2px;
         }
         .delete-btn { border-color: #a9452f; color: #ffb7a4; }
-        .role-badge { background: #0f2f2a; padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; }
+        .role-badge { background: #0f2f2a; padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; display: inline-block; }
         .chat-messages {
             height: 280px;
             overflow-y: auto;
@@ -159,80 +207,92 @@
             color: #bbf0e0;
             cursor: pointer;
         }
-        @media (max-width: 850px) { .card-content { padding: 1rem; } }
+        .hidden { display: none; }
+        .admin-panel { border-top: 2px solid #2fa984; margin-top: 1rem; padding-top: 1rem; }
+        @media (max-width: 850px) { .card-content { padding: 1rem; } .emp-table th, .emp-table td { font-size: 0.65rem; } }
     </style>
 </head>
 <body>
 <div class="dashboard">
-    <div class="card">
-        <div class="card-header">
-            <h2>🔐 РЕГИСТРАЦИЯ В СЕТИ EPLS</h2>
-            <div class="badge-led"><span class="led"></span> ОБЩАЯ СЕТЬ</div>
-        </div>
+    <!-- Карточка входа -->
+    <div class="card" id="loginCard">
+        <div class="card-header"><h2>🔐 ВХОД В СЕТЬ EPLS</h2><div class="badge-led"><span class="led"></span> КОРПОРАТИВНАЯ СЕТЬ</div></div>
         <div class="card-content">
-            <div class="reg-grid">
-                <div class="reg-field"><label>ФИО</label><input type="text" id="regFullname" placeholder="Иванов Иван Иванович"></div>
-                <div class="reg-field"><label>ДОЛЖНОСТЬ</label><input type="text" id="regPosition" placeholder="Инженер, Оператор..."></div>
-                <div class="reg-field"><label>ПАРОЛЬ</label><input type="password" id="regPassword" placeholder="секретный ключ"></div>
+            <div class="login-form">
+                <input type="text" id="loginFullname" placeholder="ФИО" autocomplete="off">
+                <input type="password" id="loginPassword" placeholder="Пароль">
+                <button class="btn-primary" id="loginBtn">ВОЙТИ</button>
+                <div style="margin-top: 1rem; font-size: 0.7rem; color: #5aa694;">Нет аккаунта? Зарегистрируйтесь у администратора</div>
             </div>
-            <button class="btn-primary" id="registerBtn">➕ ДОБАВИТЬ В СЕТЬ</button>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-header">
-            <h2>👥 СОТРУДНИКИ | Уровни 1-5</h2>
-            <div class="badge-led"><span class="led"></span> АДМИН-ПАНЕЛЬ</div>
+    <!-- Основной интерфейс (после входа) -->
+    <div id="mainInterface" class="hidden">
+        <!-- Шапка с информацией о пользователе -->
+        <div class="card">
+            <div class="card-header">
+                <h2>📋 ПАНЕЛЬ УПРАВЛЕНИЯ</h2>
+                <div class="user-info" id="userInfo"></div>
+            </div>
         </div>
-        <div class="card-content employees-table-wrapper">
-            <table class="emp-table" id="empTable"><thead><tr><th>ФИО</th><th>Должность</th><th>Уровень</th><th>Админ</th><th>Действия</th></tr></thead><tbody id="empTableBody"></tbody></table>
-        </div>
-    </div>
 
-    <div class="card">
-        <div class="card-header">
-            <h2>💬 ЧАТ ЗАПРОСОВ</h2>
-            <div class="badge-led"><span class="led"></span> ОНЛАЙН</div>
+        <!-- Чат (доступен всем) -->
+        <div class="card">
+            <div class="card-header"><h2>💬 ЧАТ ЗАПРОСОВ</h2><div class="badge-led"><span class="led"></span> ОНЛАЙН</div></div>
+            <div class="card-content">
+                <div class="author-bar"><span style="font-size:0.65rem;">Ваше имя в чате:</span><span id="currentAuthorName" style="color:#8effdb;">—</span><button class="change-author-btn" id="changeAuthorBtn">🔄 Сменить</button></div>
+                <div id="chatMessages" class="chat-messages">Загрузка...</div>
+                <div class="chat-input-area"><input type="text" id="chatInput" class="chat-input" placeholder="Напишите сообщение..."><button id="sendChatBtn" class="chat-send">➤</button></div>
+            </div>
         </div>
-        <div class="card-content">
-            <div class="author-bar"><span style="font-size:0.65rem;">Ваше имя:</span><span id="currentAuthorName" style="color:#8effdb;">—</span><button class="change-author-btn" id="changeAuthorBtn">🔄 Сменить</button></div>
-            <div id="chatMessages" class="chat-messages">Загрузка...</div>
-            <div class="chat-input-area"><input type="text" id="chatInput" class="chat-input" placeholder="Напишите сообщение..."><button id="sendChatBtn" class="chat-send">➤</button></div>
+
+        <!-- Смена пароля (доступна всем) -->
+        <div class="card">
+            <div class="card-header"><h2>🔑 СМЕНА ПАРОЛЯ</h2><div class="badge-led"><span class="led"></span> БЕЗОПАСНОСТЬ</div></div>
+            <div class="card-content">
+                <div class="reg-grid">
+                    <div class="reg-field"><label>НОВЫЙ ПАРОЛЬ</label><input type="password" id="newPassword" placeholder="Введите новый пароль"></div>
+                    <div class="reg-field"><button class="btn-primary" id="changePasswordBtn" style="margin-top: 20px;">СМЕНИТЬ ПАРОЛЬ</button></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- АДМИН-ПАНЕЛЬ (видна только администраторам) -->
+        <div id="adminPanel" class="hidden">
+            <div class="card">
+                <div class="card-header"><h2>👑 АДМИН-ПАНЕЛЬ | Управление сотрудниками</h2><div class="badge-led"><span class="led"></span> ПОЛНЫЙ ДОСТУП</div></div>
+                <div class="card-content employees-table-wrapper">
+                    <table class="emp-table" id="empTable"><thead><tr><th>ФИО</th><th>Должность</th><th>Пароль</th><th>Уровень</th><th>Админ</th><th>Действия</th></tr></thead><tbody id="empTableBody"></tbody></table>
+                </div>
+            </div>
+
+            <!-- Форма регистрации нового сотрудника (только админ) -->
+            <div class="card">
+                <div class="card-header"><h2>➕ РЕГИСТРАЦИЯ НОВОГО СОТРУДНИКА</h2><div class="badge-led"><span class="led"></span> АДМИН</div></div>
+                <div class="card-content">
+                    <div class="reg-grid">
+                        <div class="reg-field"><label>ФИО</label><input type="text" id="regFullname" placeholder="Иванов Иван Иванович"></div>
+                        <div class="reg-field"><label>ДОЛЖНОСТЬ</label><input type="text" id="regPosition" placeholder="Инженер, Оператор..."></div>
+                        <div class="reg-field"><label>ПАРОЛЬ</label><input type="password" id="regPassword" placeholder="Начальный пароль"></div>
+                        <div class="reg-field"><label>УРОВЕНЬ (1-5)</label><select id="regLevel"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+                    </div>
+                    <button class="btn-primary" id="registerBtn">➕ ДОБАВИТЬ В СЕТЬ</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    // API endpoint (ваш GitHub Pages + db.json)
+    // API endpoint
     const API_BASE = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '') + '/db.json';
     
     let employees = [];
     let chatMessages = [];
-    let currentChatAuthor = localStorage.getItem('epls_chat_author') || prompt("Ваше имя для чата:", "Сотрудник") || "Гость";
-    localStorage.setItem('epls_chat_author', currentChatAuthor);
-    document.getElementById('currentAuthorName').innerText = currentChatAuthor;
-
-    function fetchData() {
-        fetch(API_BASE)
-            .then(r => r.json())
-            .then(data => {
-                if (data.employees) employees = data.employees;
-                if (data.chat) chatMessages = data.chat.sort((a,b)=>a.timestamp-b.timestamp);
-                renderTable();
-                renderChat();
-            })
-            .catch(e => console.error('Ошибка загрузки:', e));
-    }
-
-    function saveData() {
-        const payload = { employees, chat: chatMessages };
-        fetch(API_BASE, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        }).catch(e => showToast('Ошибка сохранения', true));
-    }
-
+    let currentUser = null; // { id, full_name, position, level, is_admin }
+    let currentChatAuthor = localStorage.getItem('epls_chat_author') || "";
+    
     function showToast(msg, isErr = false) {
         const toast = document.createElement('div');
         toast.className = 'toast';
@@ -242,99 +302,22 @@
         setTimeout(() => toast.remove(), 3000);
     }
 
-    function registerEmployee() {
-        const full = document.getElementById('regFullname').value.trim();
-        const pos = document.getElementById('regPosition').value.trim();
-        const pwd = document.getElementById('regPassword').value.trim();
-        if (!full || !pos || !pwd) { showToast("Заполните все поля", true); return; }
-        if (employees.find(e => e.full_name === full)) { showToast("Сотрудник уже существует", true); return; }
-        employees.push({
-            id: Date.now().toString(),
-            full_name: full,
-            position: pos,
-            password: pwd,
-            level: 1,
-            is_admin: false
-        });
-        saveData();
-        showToast(`✅ ${full} добавлен`);
-        document.getElementById('regFullname').value = '';
-        document.getElementById('regPosition').value = '';
-        document.getElementById('regPassword').value = '';
+    function fetchData() {
+        return fetch(API_BASE).then(r => r.json()).catch(e => console.error('Ошибка загрузки:', e));
     }
 
-    function updateEmployee(id, level, isAdmin) {
-        const emp = employees.find(e => e.id === id);
-        if (!emp) return;
-        if (emp.full_name === "Системный Администратор" && isAdmin === false) {
-            showToast("Нельзя снять админку с главного администратора", true);
-            return;
-        }
-        emp.level = parseInt(level);
-        emp.is_admin = isAdmin;
-        saveData();
-        showToast(`📌 ${emp.full_name}: уровень ${emp.level}, админ: ${isAdmin ? "ДА" : "НЕТ"}`);
+    function saveData() {
+        const payload = { employees, chat: chatMessages };
+        return fetch(API_BASE, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).catch(e => showToast('Ошибка сохранения', true));
     }
 
-    function deleteEmployee(id) {
-        const emp = employees.find(e => e.id === id);
-        if (!emp) return;
-        if (emp.full_name === "Системный Администратор") { showToast("Нельзя удалить главного администратора", true); return; }
-        if (confirm(`Удалить ${emp.full_name}?`)) {
-            employees = employees.filter(e => e.id !== id);
-            saveData();
-            showToast(`🗑️ ${emp.full_name} удалён`);
-        }
-    }
-
-    function sendMessage() {
-        const text = document.getElementById('chatInput').value.trim();
-        if (!text) return;
-        chatMessages.push({
-            id: Date.now().toString(),
-            author: currentChatAuthor,
-            text: text,
-            timestamp: Date.now()
-        });
-        saveData();
-        document.getElementById('chatInput').value = '';
-    }
-
-    function renderTable() {
-        const tbody = document.getElementById('empTableBody');
-        if (!tbody) return;
-        tbody.innerHTML = '';
-        employees.forEach(emp => {
-            const row = tbody.insertRow();
-            row.insertCell(0).innerText = emp.full_name;
-            row.insertCell(1).innerHTML = `<span class="role-badge">${escapeHtml(emp.position)}</span>`;
-            const lvlCell = row.insertCell(2);
-            const select = document.createElement('select');
-            select.className = 'level-select';
-            for (let i = 1; i <= 5; i++) {
-                const opt = document.createElement('option');
-                opt.value = i; opt.textContent = i;
-                if (emp.level === i) opt.selected = true;
-                select.appendChild(opt);
-            }
-            const adminCell = row.insertCell(3);
-            const chk = document.createElement('input');
-            chk.type = 'checkbox'; chk.className = 'admin-checkbox';
-            chk.checked = emp.is_admin === true;
-            const actionCell = row.insertCell(4);
-            const saveBtn = document.createElement('button');
-            saveBtn.innerText = '💾 Сохранить';
-            saveBtn.className = 'save-level-btn';
-            saveBtn.onclick = () => updateEmployee(emp.id, select.value, chk.checked);
-            const delBtn = document.createElement('button');
-            delBtn.innerText = '🗑️ Удалить';
-            delBtn.className = 'delete-btn';
-            delBtn.onclick = () => deleteEmployee(emp.id);
-            if (emp.full_name === "Системный Администратор") delBtn.disabled = true;
-            actionCell.appendChild(saveBtn);
-            actionCell.appendChild(delBtn);
-            lvlCell.appendChild(select);
-            adminCell.appendChild(chk);
+    function loadChat() {
+        fetchData().then(data => {
+            if (data.chat) { chatMessages = data.chat.sort((a,b)=>a.timestamp-b.timestamp); renderChat(); }
         });
     }
 
@@ -353,18 +336,175 @@
         container.scrollTop = container.scrollHeight;
     }
 
+    function sendMessage() {
+        const text = document.getElementById('chatInput').value.trim();
+        if (!text) return;
+        chatMessages.push({ id: Date.now().toString(), author: currentChatAuthor, text: text, timestamp: Date.now() });
+        saveData().then(() => loadChat());
+        document.getElementById('chatInput').value = '';
+    }
+
+    function changePassword() {
+        const newPwd = document.getElementById('newPassword').value.trim();
+        if (!newPwd) { showToast("Введите новый пароль", true); return; }
+        const emp = employees.find(e => e.id === currentUser.id);
+        if (emp) { emp.password = newPwd; saveData().then(() => { showToast("Пароль изменён"); document.getElementById('newPassword').value = ''; }); }
+    }
+
+    // Админ-функции
+    function registerEmployee() {
+        const full = document.getElementById('regFullname').value.trim();
+        const pos = document.getElementById('regPosition').value.trim();
+        const pwd = document.getElementById('regPassword').value.trim();
+        const lvl = parseInt(document.getElementById('regLevel').value);
+        if (!full || !pos || !pwd) { showToast("Заполните все поля", true); return; }
+        if (employees.find(e => e.full_name === full)) { showToast("Сотрудник уже существует", true); return; }
+        employees.push({ id: Date.now().toString(), full_name: full, position: pos, password: pwd, level: lvl, is_admin: false });
+        saveData().then(() => { showToast(`✅ ${full} добавлен`); renderAdminTable(); });
+        document.getElementById('regFullname').value = '';
+        document.getElementById('regPosition').value = '';
+        document.getElementById('regPassword').value = '';
+    }
+
+    function updateEmployee(id, newFullName, newPosition, newPassword, newLevel, newIsAdmin) {
+        const emp = employees.find(e => e.id === id);
+        if (!emp) return;
+        if (emp.full_name === "Системный Администратор" && newIsAdmin === false) { showToast("Нельзя снять админку с главного администратора", true); return; }
+        emp.full_name = newFullName;
+        emp.position = newPosition;
+        if (newPassword && newPassword.trim()) emp.password = newPassword;
+        emp.level = parseInt(newLevel);
+        emp.is_admin = newIsAdmin;
+        saveData().then(() => { showToast(`✅ ${emp.full_name} обновлён`); renderAdminTable(); });
+        if (currentUser.id === id) currentUser = emp;
+    }
+
+    function deleteEmployee(id) {
+        const emp = employees.find(e => e.id === id);
+        if (!emp) return;
+        if (emp.full_name === "Системный Администратор") { showToast("Нельзя удалить главного администратора", true); return; }
+        if (confirm(`Удалить ${emp.full_name}?`)) {
+            employees = employees.filter(e => e.id !== id);
+            saveData().then(() => { showToast(`🗑️ ${emp.full_name} удалён`); renderAdminTable(); });
+        }
+    }
+
+    function renderAdminTable() {
+        const tbody = document.getElementById('empTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        employees.forEach(emp => {
+            const row = tbody.insertRow();
+            // ФИО (редактируемое)
+            const nameCell = row.insertCell(0);
+            const nameInput = document.createElement('input');
+            nameInput.value = emp.full_name;
+            nameInput.style.width = '120px';
+            // Должность (редактируемая)
+            const posCell = row.insertCell(1);
+            const posInput = document.createElement('input');
+            posInput.value = emp.position;
+            posInput.style.width = '120px';
+            // Пароль (редактируемый)
+            const pwdCell = row.insertCell(2);
+            const pwdInput = document.createElement('input');
+            pwdInput.type = 'password';
+            pwdInput.value = emp.password;
+            pwdInput.style.width = '100px';
+            // Уровень
+            const lvlCell = row.insertCell(3);
+            const lvlSelect = document.createElement('select');
+            for (let i = 1; i <= 5; i++) {
+                const opt = document.createElement('option');
+                opt.value = i; opt.textContent = i;
+                if (emp.level === i) opt.selected = true;
+                lvlSelect.appendChild(opt);
+            }
+            // Чекбокс админ
+            const adminCell = row.insertCell(4);
+            const chk = document.createElement('input');
+            chk.type = 'checkbox'; chk.checked = emp.is_admin === true;
+            // Действия
+            const actionCell = row.insertCell(5);
+            const saveBtn = document.createElement('button');
+            saveBtn.innerText = '💾 Сохранить';
+            saveBtn.className = 'save-user-btn';
+            saveBtn.onclick = () => updateEmployee(emp.id, nameInput.value, posInput.value, pwdInput.value, lvlSelect.value, chk.checked);
+            const delBtn = document.createElement('button');
+            delBtn.innerText = '🗑️ Удалить';
+            delBtn.className = 'delete-btn';
+            delBtn.onclick = () => deleteEmployee(emp.id);
+            if (emp.full_name === "Системный Администратор") delBtn.disabled = true;
+            actionCell.appendChild(saveBtn);
+            actionCell.appendChild(delBtn);
+            nameCell.appendChild(nameInput);
+            posCell.appendChild(posInput);
+            pwdCell.appendChild(pwdInput);
+            lvlCell.appendChild(lvlSelect);
+            adminCell.appendChild(chk);
+        });
+    }
+
     function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
 
-    document.getElementById('registerBtn').onclick = registerEmployee;
+    // Авторизация
+    function login() {
+        const fullname = document.getElementById('loginFullname').value.trim();
+        const password = document.getElementById('loginPassword').value.trim();
+        if (!fullname || !password) { showToast("Введите ФИО и пароль", true); return; }
+        fetchData().then(data => {
+            employees = data.employees || [];
+            const user = employees.find(e => e.full_name === fullname && e.password === password);
+            if (!user) { showToast("Неверное ФИО или пароль", true); return; }
+            currentUser = user;
+            currentChatAuthor = currentUser.full_name;
+            localStorage.setItem('epls_chat_author', currentChatAuthor);
+            document.getElementById('currentAuthorName').innerText = currentChatAuthor;
+            document.getElementById('loginCard').classList.add('hidden');
+            document.getElementById('mainInterface').classList.remove('hidden');
+            document.getElementById('userInfo').innerHTML = `<span>👤 ${currentUser.full_name} | ${currentUser.position} | Уровень ${currentUser.level}</span><button class="logout-btn" id="logoutBtn">🚪 Выйти</button>`;
+            document.getElementById('logoutBtn').onclick = () => { currentUser = null; document.getElementById('mainInterface').classList.add('hidden'); document.getElementById('loginCard').classList.remove('hidden'); document.getElementById('loginFullname').value = ''; document.getElementById('loginPassword').value = ''; };
+            if (currentUser.is_admin) {
+                document.getElementById('adminPanel').classList.remove('hidden');
+                renderAdminTable();
+            } else {
+                document.getElementById('adminPanel').classList.add('hidden');
+            }
+            loadChat();
+        });
+    }
+
+    // Инициализация базы данных, если пустая
+    function initDbIfEmpty() {
+        fetchData().then(data => {
+            if (!data.employees || data.employees.length === 0) {
+                const defaultData = {
+                    employees: [{ id: "admin_main", full_name: "Системный Администратор", position: "Глава сети", password: "admin123", level: 5, is_admin: true }],
+                    chat: [{ id: "init", author: "Система", text: "Чат активен. Добро пожаловать.", timestamp: Date.now() }]
+                };
+                fetch(API_BASE, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(defaultData)
+                }).then(() => console.log("База инициализирована"));
+            }
+        });
+    }
+
+    // Обработчики событий
+    document.getElementById('loginBtn').onclick = login;
+    document.getElementById('loginPassword').addEventListener('keypress', (e) => { if (e.key === 'Enter') login(); });
     document.getElementById('sendChatBtn').onclick = sendMessage;
     document.getElementById('chatInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+    document.getElementById('changePasswordBtn').onclick = changePassword;
+    document.getElementById('registerBtn').onclick = registerEmployee;
     document.getElementById('changeAuthorBtn').onclick = () => {
         const newName = prompt("Новое имя в чате:", currentChatAuthor);
         if (newName && newName.trim()) { currentChatAuthor = newName.trim(); localStorage.setItem('epls_chat_author', currentChatAuthor); document.getElementById('currentAuthorName').innerText = currentChatAuthor; showToast(`Имя изменено на ${currentChatAuthor}`); }
     };
     
-    fetchData();
-    setInterval(fetchData, 2000);
+    initDbIfEmpty();
+    setInterval(loadChat, 3000);
 </script>
 </body>
 </html>
