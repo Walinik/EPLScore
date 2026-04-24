@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>EPLS | Инициализация смены | НРП-доступ</title>
+    <title>EPLS | Система авторизации сотрудников</title>
     <style>
         * {
             margin: 0;
@@ -25,38 +25,35 @@
         }
 
         @keyframes bgPulse {
-            0% { background: radial-gradient(circle at 20% 30%, #0a1f1a, #030c0f); }
+            0%, 100% { background: radial-gradient(circle at 20% 30%, #0a1f1a, #030c0f); }
             50% { background: radial-gradient(circle at 70% 60%, #0e2a24, #021010); }
-            100% { background: radial-gradient(circle at 20% 30%, #0a1f1a, #030c0f); }
         }
 
-        .epuls-panel {
-            max-width: 800px;
+        /* Основной контейнер */
+        .epls-container {
+            max-width: 900px;
             width: 100%;
-            background: #0b1b1e;
+        }
+
+        /* Терминал */
+        .epuls-panel {
+            width: 100%;
             background: linear-gradient(145deg, #0a191c 0%, #031113 100%);
             border-radius: 2rem;
-            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.6);
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(20, 130, 100, 0.25);
             backdrop-filter: blur(1px);
             border: 1px solid rgba(30, 180, 140, 0.5);
-            transition: filter 0.2s, box-shadow 0.3s ease;
-            animation: panelGlow 3s ease-in-out infinite;
-        }
-
-        @keyframes panelGlow {
-            0% { box-shadow: 0 25px 45px rgba(0,0,0,0.6), 0 0 0 2px rgba(20,130,100,0.25); }
-            50% { box-shadow: 0 25px 55px rgba(0,0,0,0.7), 0 0 0 3px rgba(40,200,140,0.5); }
-            100% { box-shadow: 0 25px 45px rgba(0,0,0,0.6), 0 0 0 2px rgba(20,130,100,0.25); }
+            transition: filter 0.2s;
         }
 
         .ep-header {
-            padding: 1.2rem 2rem;
+            padding: 1rem 2rem;
             border-bottom: 1px solid rgba(40, 200, 150, 0.4);
             background: rgba(0, 30, 28, 0.7);
             border-radius: 2rem 2rem 0 0;
             display: flex;
             justify-content: space-between;
-            align-items: baseline;
+            align-items: center;
             flex-wrap: wrap;
             gap: 0.5rem;
         }
@@ -69,18 +66,16 @@
 
         .sys-icon {
             font-size: 1.8rem;
-            filter: drop-shadow(0 0 3px #1ccfaa);
             animation: iconPulse 2s ease-in-out infinite;
         }
 
         @keyframes iconPulse {
-            0% { filter: drop-shadow(0 0 3px #1ccfaa); transform: scale(1); }
+            0%, 100% { filter: drop-shadow(0 0 3px #1ccfaa); transform: scale(1); }
             50% { filter: drop-shadow(0 0 10px #3effc3); transform: scale(1.05); }
-            100% { filter: drop-shadow(0 0 3px #1ccfaa); transform: scale(1); }
         }
 
         .sys-title {
-            font-size: 1.4rem;
+            font-size: 1.3rem;
             font-weight: 600;
             letter-spacing: 2px;
             background: linear-gradient(135deg, #b0ffea, #3dd68c);
@@ -89,21 +84,11 @@
             color: transparent;
         }
 
-        .version-tag {
-            font-family: monospace;
-            font-size: 0.7rem;
-            background: #0f2a25;
-            padding: 4px 8px;
-            border-radius: 20px;
-            color: #71cfb0;
-            border: 0.5px solid #2e9f85;
-        }
-
         .status-led {
             display: flex;
             align-items: center;
-            gap: 6px;
-            font-size: 0.75rem;
+            gap: 8px;
+            font-size: 0.7rem;
             background: #031e1b;
             padding: 5px 12px;
             border-radius: 30px;
@@ -115,276 +100,238 @@
             height: 10px;
             border-radius: 50%;
             background-color: #2affb6;
-            box-shadow: 0 0 6px #0affa0;
-            animation: pulseGreen 1.8s infinite;
-        }
-
-        @keyframes pulseGreen {
-            0% { opacity: 0.4; }
-            100% { opacity: 1; }
-        }
-
-        .ep-content {
-            padding: 2rem 2rem 1.8rem;
-        }
-
-        .event-title {
-            text-align: center;
-            margin-bottom: 1.8rem;
-            border-left: 3px solid #2bcba0;
-            background: linear-gradient(90deg, #0b2624, transparent);
-            padding: 0.8rem 0 0.8rem 1rem;
-        }
-
-        .mini-event {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            font-weight: 400;
-            color: #5aa694;
-        }
-
-        .main-greeting {
-            font-size: 1.85rem;
-            font-weight: 700;
-            color: #d9fff2;
-            text-shadow: 0 0 6px #0f614a;
-            margin-top: 6px;
-        }
-
-        .welcome-message {
-            background: #021012b3;
-            padding: 1.4rem;
-            border-radius: 1.4rem;
-            margin: 1rem 0 2rem 0;
-            border: 1px solid #1d8a73;
-            backdrop-filter: blur(3px);
-        }
-
-        .line-system {
-            font-family: 'Courier New', monospace;
-            font-size: 0.98rem;
-            color: #bef2e5;
-            margin-bottom: 12px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            align-items: baseline;
-        }
-
-        .prompt {
-            color: #36f0b0;
-            font-weight: bold;
-        }
-
-        .sys-msg {
-            color: #adfae1;
-        }
-
-        .blink-cursor {
-            background-color: #27e0a8;
-            width: 8px;
-            height: 1rem;
-            display: inline-block;
-            margin-left: 4px;
             animation: blink 1s step-end infinite;
         }
 
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
+        .ep-content {
+            padding: 2rem;
         }
 
-        .info-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin-top: 1.8rem;
-            justify-content: space-between;
+        /* Форма регистрации */
+        .register-form {
+            background: rgba(2, 16, 18, 0.7);
+            backdrop-filter: blur(5px);
+            border-radius: 1.5rem;
+            padding: 1.8rem;
+            border: 1px solid #1d8a73;
+            margin-bottom: 2rem;
         }
 
-        .info-card {
-            flex: 1;
-            background: #04181fba;
-            border-radius: 1.2rem;
-            padding: 1rem;
-            border-left: 3px solid #32b894;
-            backdrop-filter: blur(2px);
-            transition: all 0.3s ease;
-        }
-
-        .info-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 0 15px rgba(50, 200, 140, 0.3);
-        }
-
-        .info-label {
-            font-size: 0.7rem;
-            letter-spacing: 1px;
-            color: #60cfae;
-            text-transform: uppercase;
-        }
-
-        .info-value {
-            font-size: 1rem;
-            font-weight: 500;
-            margin-top: 6px;
-            word-break: break-word;
-            color: #e1fff0;
-        }
-
-        .progress-area {
-            margin: 1.8rem 0 1.2rem;
-        }
-
-        .progress-text {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.75rem;
-            margin-bottom: 6px;
-            color: #aadfd0;
-        }
-
-        .progress-bar-bg {
-            background: #072e2a;
-            border-radius: 20px;
-            height: 12px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            width: 0%;
-            height: 100%;
-            background: linear-gradient(90deg, #1ecf96, #29b28b);
-            border-radius: 20px;
-            transition: width 0.1s linear;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 1rem;
-            justify-content: flex-end;
-            margin-top: 2rem;
-            flex-wrap: wrap;
-        }
-
-        .ep-button {
-            background: transparent;
-            border: 1px solid #2fa984;
-            padding: 10px 22px;
-            border-radius: 40px;
-            font-family: monospace;
-            font-weight: bold;
-            font-size: 0.8rem;
-            letter-spacing: 1px;
-            color: #c0f3e4;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .ep-button:hover {
-            background: #1b6e5a60;
-            border-color: #6affcf;
-            color: #ffffff;
-            box-shadow: 0 0 10px #21bd8d30;
-        }
-
-        .ep-button-primary {
-            background: #1b7b63b3;
-            border-color: #5cefc2;
-            color: #f0fff5;
-        }
-
-        .footer-sec {
-            border-top: 1px solid #1b6552;
-            padding: 0.8rem 2rem;
-            font-size: 0.55rem;
-            text-align: center;
-            color: #2e8d74;
-            font-family: monospace;
-        }
-
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(1, 15, 12, 0.9);
-            backdrop-filter: blur(6px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            font-family: 'Courier New', monospace;
-        }
-
-        .modal-card {
-            background: linear-gradient(145deg, #0d2527, #04181a);
-            border-radius: 2rem;
-            max-width: 420px;
-            width: 90%;
-            border: 1px solid #2dbb93;
-            box-shadow: 0 20px 35px rgba(0,0,0,0.6);
-            padding: 1.8rem 2rem;
-        }
-
-        .modal-card h3 {
-            color: #abffe6;
-            font-size: 1.4rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .modal-sub {
-            color: #62bba2;
-            font-size: 0.8rem;
+        .form-title {
+            font-size: 1.2rem;
+            color: #3effbc;
             margin-bottom: 1.5rem;
-            border-left: 2px solid #32b38a;
-            padding-left: 12px;
+            text-align: center;
+            letter-spacing: 2px;
         }
 
-        .nick-input {
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.7rem;
+            color: #7adbc2;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        .form-group input, .form-group select {
             width: 100%;
             background: #02221f;
             border: 1px solid #2f9d80;
             padding: 12px 16px;
-            border-radius: 60px;
-            font-size: 1rem;
+            border-radius: 12px;
+            font-size: 0.95rem;
             font-family: 'Courier New', monospace;
             color: #dcffee;
             outline: none;
+            transition: 0.2s;
         }
 
-        .nick-input:focus {
+        .form-group input:focus, .form-group select:focus {
             border-color: #7aeecb;
             box-shadow: 0 0 10px #36e0b0;
         }
 
-        .modal-buttons {
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
-            margin-top: 1.8rem;
+        .form-group select option {
+            background: #02221f;
+            color: #dcffee;
         }
 
-        .modal-btn {
-            background: transparent;
-            border: 1px solid #308a6f;
-            padding: 8px 20px;
+        .form-row {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .submit-btn {
+            background: #1b7b63b3;
+            border: 1px solid #5cefc2;
+            padding: 12px 24px;
             border-radius: 40px;
             font-family: monospace;
             font-weight: bold;
-            color: #caf7ea;
+            font-size: 0.9rem;
+            color: #f0fff5;
             cursor: pointer;
+            width: 100%;
+            transition: all 0.2s;
+            margin-top: 0.5rem;
         }
 
-        .modal-btn-primary {
-            background: #1f755fc9;
-            border-color: #56eec6;
-            color: white;
+        .submit-btn:hover {
+            background: #259e7ed9;
+            box-shadow: 0 0 12px #27e6b0;
+            transform: scale(1.01);
         }
 
-        .tooltip-hint {
+        /* Список сотрудников */
+        .employees-section {
+            background: rgba(2, 16, 18, 0.5);
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            border: 1px solid #1d8a73;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            color: #3effbc;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .employees-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .employee-card {
+            background: #041f1bb3;
+            border-radius: 12px;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            border-left: 3px solid #32b894;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            transition: 0.2s;
+        }
+
+        .employee-card:hover {
+            background: #06352eb3;
+            transform: translateX(3px);
+        }
+
+        .employee-info {
+            flex: 2;
+        }
+
+        .employee-name {
+            font-weight: bold;
+            color: #e1fff0;
+            font-size: 0.95rem;
+        }
+
+        .employee-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 0.7rem;
+            color: #7adbc2;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+
+        .employee-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .level-select {
+            background: #02221f;
+            border: 1px solid #2f9d80;
+            padding: 5px 8px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-family: monospace;
+            color: #dcffee;
+        }
+
+        .role-select {
+            background: #02221f;
+            border: 1px solid #2f9d80;
+            padding: 5px 8px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-family: monospace;
+            color: #dcffee;
+        }
+
+        .save-user-btn {
+            background: transparent;
+            border: 1px solid #2fa984;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            color: #c0f3e4;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .save-user-btn:hover {
+            background: #1b6e5a60;
+            border-color: #6affcf;
+        }
+
+        .delete-user-btn {
+            background: transparent;
+            border: 1px solid #a9452f;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            color: #ffb7a4;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .delete-user-btn:hover {
+            background: #6e2e1b60;
+            border-color: #ff7a5e;
+        }
+
+        .user-status {
+            font-size: 0.6rem;
+            padding: 3px 8px;
+            border-radius: 20px;
+            background: #0a2a25;
+        }
+
+        .status-active {
+            color: #3effbc;
+        }
+
+        .empty-list {
+            text-align: center;
+            color: #5aa694;
+            padding: 20px;
+            font-size: 0.8rem;
+        }
+
+        /* Всплывающие уведомления */
+        .toast {
             position: fixed;
             bottom: 30px;
             left: 50%;
@@ -393,383 +340,341 @@
             backdrop-filter: blur(12px);
             border-left: 4px solid #4bffc3;
             border-radius: 20px;
-            padding: 14px 26px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.95rem;
+            padding: 12px 24px;
+            font-size: 0.85rem;
             color: #e1ffef;
             z-index: 1100;
+            animation: slideUp 0.25s ease-out;
+            text-align: center;
             white-space: nowrap;
-            animation: slideUpFade 0.25s ease-out;
         }
 
-        @keyframes slideUpFade {
+        @keyframes slideUp {
             from { opacity: 0; transform: translateX(-50%) translateY(20px); }
             to { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
 
-        .epuls-panel.blur-effect {
-            filter: blur(2px);
-            pointer-events: none;
+        .footer {
+            margin-top: 1.5rem;
+            text-align: center;
+            font-size: 0.55rem;
+            color: #2e8d74;
         }
 
-        @media (max-width: 580px) {
-            .main-greeting { font-size: 1.3rem; }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #031e1b;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #2e9f85;
+            border-radius: 10px;
+        }
+
+        @media (max-width: 650px) {
             .ep-content { padding: 1.2rem; }
-            .info-grid { flex-direction: column; }
-            .tooltip-hint { white-space: normal; text-align: center; width: 90%; font-size: 0.8rem; }
+            .employee-card { flex-direction: column; align-items: stretch; }
+            .employee-controls { justify-content: flex-start; }
+            .toast { white-space: normal; width: 90%; text-align: center; }
         }
     </style>
 </head>
 <body>
 
-<div class="epuls-panel" id="eplsPanel">
-    <div class="ep-header">
-        <div class="sys-badge">
-            <span class="sys-icon">⚡⎔</span>
-            <span class="sys-title">EPLS // v.24.1</span>
-            <span class="version-tag">[Secure-Prot]</span>
-        </div>
-        <div class="status-led">
-            <span class="led"></span>
-            <span>СИСТЕМЫ АКТИВНЫ</span>
-        </div>
-    </div>
-
-    <div class="ep-content">
-        <div class="event-title">
-            <div class="mini-event">✦ МИНИ-ИВЕНТ ✦</div>
-            <div class="main-greeting">EPLS АКТИВЕН</div>
-        </div>
-
-        <div class="welcome-message" id="logArea">
-            <div class="line-system">
-                <span class="prompt">[EPLS/core]></span>
-                <span class="sys-msg" id="line0">Инициализация протоколов начала смены...</span>
+<div class="epls-container">
+    <div class="epuls-panel" id="eplsPanel">
+        <div class="ep-header">
+            <div class="sys-badge">
+                <span class="sys-icon">⚡⎔</span>
+                <span class="sys-title">EPLS // Управление персоналом</span>
             </div>
-            <div class="line-system">
-                <span class="prompt">[EPLS/auth]></span>
-                <span class="sys-msg" id="line1">Загрузка модуля EPLS</span>
-            </div>
-            <div class="line-system">
-                <span class="prompt">[sys.daemon]></span>
-                <span class="sys-msg" id="line2">Синхронизация с сервером... ➜ статус: УСПЕШНО</span>
-            </div>
-            <div class="line-system" id="cursorLine">
-                <span class="prompt">[ready]></span>
-                <span class="sys-msg">_</span><span class="blink-cursor"></span>
+            <div class="status-led">
+                <span class="led"></span>
+                <span>СЕТЬ АКТИВНА</span>
             </div>
         </div>
 
-        <div class="info-grid">
-            <div class="info-card">
-                <div class="info-label">СМЕНА / ИВЕНТ</div>
-                <div class="info-value">«ПЕРВЫЙ ЗАПУСК <br> EPLS-контур»</div>
+        <div class="ep-content">
+            <!-- Форма регистрации нового сотрудника -->
+            <div class="register-form">
+                <div class="form-title">🔐 РЕГИСТРАЦИЯ СОТРУДНИКА</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>ФИО</label>
+                        <input type="text" id="fullName" placeholder="Иванов Иван Иванович" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label>Должность</label>
+                        <input type="text" id="position" placeholder="Инженер, Оператор, Аналитик..." autocomplete="off">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Пароль доступа</label>
+                    <input type="password" id="password" placeholder="Введите пароль" autocomplete="off">
+                </div>
+                <button class="submit-btn" id="registerBtn">➕ ДОБАВИТЬ В СЕТЬ</button>
             </div>
-            <div class="info-card">
-                <div class="info-label">СТАТУС ВКЛЮЧЕНИЯ</div>
-                <div class="info-value" id="statusValue">ЗАПУСК ЯДРА ...</div>
-            </div>
-            <div class="info-card">
-                <div class="info-label">АКТИВНЫЕ МОДУЛИ</div>
-                <div class="info-value">🔹Логика | 🔸Безопасность | 🔹EPLS-Core</div>
+
+            <!-- Список сотрудников (админ-панель) -->
+            <div class="employees-section">
+                <div class="section-title">
+                    <span>📋 СОТРУДНИКИ В СЕТИ</span>
+                    <span style="font-size: 0.65rem;" id="employeeCount">0 человек</span>
+                </div>
+                <div class="employees-list" id="employeesList">
+                    <div class="empty-list">Нет добавленных сотрудников</div>
+                </div>
             </div>
         </div>
 
-        <div class="progress-area">
-            <div class="progress-text">
-                <span>⚙️ Загрузка компонентов EPLS</span>
-                <span id="progressPercent">0%</span>
-            </div>
-            <div class="progress-bar-bg">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
+        <div class="footer">
+            EPLS | Сеть сотрудников — управление уровнями допуска и должностями
         </div>
-
-        <div class="action-buttons">
-            <button class="ep-button" id="resetBtn">⟳ СБРОС ИНИЦИАЛИЗАЦИИ</button>
-            <button class="ep-button ep-button-primary" id="confirmBtn">✅ ПОДТВЕРДИТЬ & НАЧАТЬ СМЕНУ</button>
-        </div>
-    </div>
-
-    <div class="footer-sec">
-        | EPLS | — полная готовность. // MRP FunClub
     </div>
 </div>
 
 <script>
     (function() {
-        const progressFill = document.getElementById('progressFill');
-        const progressPercentSpan = document.getElementById('progressPercent');
-        const statusSpan = document.getElementById('statusValue');
-        const line0 = document.getElementById('line0');
-        const line1 = document.getElementById('line1');
-        const line2 = document.getElementById('line2');
-        const cursorLineDiv = document.getElementById('cursorLine');
-        const confirmBtn = document.getElementById('confirmBtn');
-        const resetBtn = document.getElementById('resetBtn');
-        const panel = document.getElementById('eplsPanel');
+        // Ключ для localStorage
+        const STORAGE_KEY = 'epls_employees';
 
-        let currentPercent = 0;
-        let isBootCompleted = false;
-        let sessionActive = false;
-        let interval = null;
+        // Загрузка сотрудников из localStorage
+        let employees = [];
 
-        const statusMessages = [
-            { max: 20, text: "ЗАПУСК ЯДРА ..." },
-            { max: 45, text: "ЗАГРУЗКА EPLS-МОДУЛЕЙ" },
-            { max: 70, text: "ПРОВЕРКА КОНТУРОВ & СВЯЗЬ" },
-            { max: 90, text: "ФИНАЛЬНАЯ КАЛИБРОВКА" },
-            { max: 100, text: "ПРОВЕРКА ЦЕЛОСТНОСТИ" }
-        ];
-
-        function updateStatus(percent) {
-            for (let s of statusMessages) {
-                if (percent < s.max) {
-                    statusSpan.innerText = s.text;
-                    return;
-                }
+        function loadEmployees() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    employees = JSON.parse(saved);
+                } catch(e) { employees = []; }
             }
-            statusSpan.innerText = "✅ ВСЕ СИСТЕМЫ АКТИВИРОВАНЫ";
+            if (!employees.length) {
+                // Демо-сотрудник для примера
+                employees = [
+                    {
+                        id: '1',
+                        fullName: 'Системный Администратор',
+                        position: 'Главный инженер',
+                        password: 'admin123',
+                        level: 'КРИТИЧЕСКИЙ',
+                        role: 'Руководитель отдела',
+                        createdAt: new Date().toISOString()
+                    }
+                ];
+                saveEmployees();
+            }
+            renderEmployees();
         }
 
-        function updateProgress(percent) {
-            percent = Math.min(100, Math.max(0, percent));
-            currentPercent = percent;
-            progressFill.style.width = percent + "%";
-            progressPercentSpan.innerText = percent + "%";
-            updateStatus(percent);
-
-            if (percent >= 25 && !line1.innerHTML.includes("ЗАВЕРШЕНО")) {
-                if (percent >= 25) {
-                    line1.innerHTML = "[EPLS/auth]> Загрузка модуля EPLS <span style='color:#54e0b5'>[ЗАВЕРШЕНО]</span>";
-                }
-            }
-            if (percent >= 55 && !line2.innerHTML.includes("канал стабилен")) {
-                if (percent >= 55) {
-                    line2.innerHTML = "[sys.daemon]> Синхронизация с сервером... ➜ статус: УСПЕШНО (канал стабилен)";
-                }
-            }
-            if (percent >= 85 && !line0.innerHTML.includes("ВЫПОЛНЕНО")) {
-                if (percent >= 85) {
-                    line0.innerHTML = "[EPLS/core]> Инициализация протоколов начала смены... <span style='color:#5cf0bd'>[ВЫПОЛНЕНО]</span>";
-                }
-            }
-
-            if (percent === 100 && !isBootCompleted) {
-                isBootCompleted = true;
-                if (interval) clearInterval(interval);
-                interval = null;
-                statusSpan.innerText = "✅ ГОТОВНОСТЬ 100% | EPLS АКТИВНА";
-                
-                if (cursorLineDiv && !document.getElementById('finalReadyMsg')) {
-                    const finalMsg = document.createElement('div');
-                    finalMsg.className = 'line-system';
-                    finalMsg.id = 'finalReadyMsg';
-                    finalMsg.innerHTML = '<span class="prompt">[EPLS/ready]></span> <span class="sys-msg" style="color:#b4ffe0;">★ Система готова к работе. Добро пожаловать. ★</span>';
-                    cursorLineDiv.insertAdjacentElement('beforebegin', finalMsg);
-                    cursorLineDiv.style.opacity = '0.6';
-                    const cursorSpan = cursorLineDiv.querySelector('.blink-cursor');
-                    if (cursorSpan) cursorSpan.style.animation = 'none';
-                }
-                
-                confirmBtn.disabled = false;
-                confirmBtn.style.opacity = '1';
-            }
+        function saveEmployees() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(employees));
+            updateCount();
         }
 
-        function startBoot() {
-            if (interval) clearInterval(interval);
-            let percent = 0;
-            updateProgress(0);
-            
-            interval = setInterval(() => {
-                if (percent >= 100) {
-                    clearInterval(interval);
-                    interval = null;
-                    updateProgress(100);
-                } else {
-                    percent += Math.random() * 3 + 1.5;
-                    if (percent > 100) percent = 100;
-                    updateProgress(Math.floor(percent));
-                }
-            }, 60);
+        function updateCount() {
+            const countSpan = document.getElementById('employeeCount');
+            if (countSpan) countSpan.innerText = employees.length + ' человек';
         }
 
-        function fullReset() {
-            if (sessionActive) return;
-            if (interval) clearInterval(interval);
-            isBootCompleted = false;
-            currentPercent = 0;
-            
-            line0.innerHTML = "[EPLS/core]> Инициализация протоколов начала смены...";
-            line1.innerHTML = "[EPLS/auth]> Загрузка модуля EPLS";
-            line2.innerHTML = "[sys.daemon]> Синхронизация с сервером... ➜ статус: УСПЕШНО";
-            
-            const finalMsgElem = document.getElementById('finalReadyMsg');
-            if (finalMsgElem) finalMsgElem.remove();
-            const nrpHint = document.getElementById('nrpHintTerm');
-            if (nrpHint) nrpHint.remove();
-            
-            cursorLineDiv.style.opacity = '1';
-            cursorLineDiv.innerHTML = '<span class="prompt">[ready]></span> <span class="sys-msg">_</span><span class="blink-cursor"></span>';
-            
-            confirmBtn.disabled = true;
-            confirmBtn.style.opacity = '0.7';
-            statusSpan.innerText = "ЗАПУСК ЯДРА ...";
-            progressFill.style.width = "0%";
-            progressPercentSpan.innerText = "0%";
-            
-            startBoot();
-        }
-
-        function showNicknameModal(onConfirm) {
-            const overlay = document.createElement('div');
-            overlay.className = 'modal-overlay';
-            overlay.innerHTML = `
-                <div class="modal-card">
-                    <h3>🔐 ИНИЦИАЛИЗАЦИЯ</h3>
-                    <div class="modal-sub">Система требует идентификации оператора перед доступом к работе</div>
-                    <input type="text" class="nick-input" id="operatorNick" placeholder="Введите ваш ник / позывной" autocomplete="off">
-                    <div class="modal-buttons">
-                        <button class="modal-btn" id="modalCancelBtn">ОТМЕНА</button>
-                        <button class="modal-btn modal-btn-primary" id="modalConfirmBtn">ПОДТВЕРДИТЬ</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-            const inputField = overlay.querySelector('#operatorNick');
-            const confirmModalBtn = overlay.querySelector('#modalConfirmBtn');
-            const cancelModalBtn = overlay.querySelector('#modalCancelBtn');
-            
-            const closeModal = () => overlay.remove();
-            
-            const submitNick = () => {
-                let nick = inputField.value.trim();
-                if (nick === "") nick = "Guest_Operator";
-                closeModal();
-                onConfirm(nick);
-            };
-            
-            confirmModalBtn.addEventListener('click', submitNick);
-            cancelModalBtn.addEventListener('click', () => {
-                closeModal();
-                panel.classList.remove('blur-effect');
-                confirmBtn.disabled = false;
-                sessionActive = false;
-            });
-            inputField.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') submitNick();
-            });
-            setTimeout(() => inputField.focus(), 50);
-        }
-
-        function showNRPTooltip() {
-            const existing = document.querySelector('.tooltip-hint');
-            if (existing) existing.remove();
-            const tooltip = document.createElement('div');
-            tooltip.className = 'tooltip-hint';
-            tooltip.innerHTML = '🤖 НРП: Для использования бота используйте команду <strong style="color:#a9ffdb">/ask [запрос]</strong>';
-            document.body.appendChild(tooltip);
+        function showToast(message, isError = false) {
+            const existing = document.querySelector('.toast');
+            if(existing) existing.remove();
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.borderLeftColor = isError ? '#ff7a5e' : '#4bffc3';
+            toast.innerHTML = message;
+            document.body.appendChild(toast);
             setTimeout(() => {
-                if (tooltip) tooltip.style.opacity = '0';
-                setTimeout(() => tooltip?.remove(), 500);
-            }, 7000);
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 500);
+            }, 3000);
         }
 
-        function confirmAndStart() {
-            if (sessionActive) return;
-            
-            if (!isBootCompleted && currentPercent < 100) {
-                const warnMsg = document.createElement('div');
-                warnMsg.innerText = '⚠️ Инициализация EPLS не завершена. Дождитесь 100% ⚠️';
-                warnMsg.style.position = 'fixed';
-                warnMsg.style.bottom = '70px';
-                warnMsg.style.left = '50%';
-                warnMsg.style.transform = 'translateX(-50%)';
-                warnMsg.style.background = '#2a1f1a';
-                warnMsg.style.border = '1px solid #e68a5e';
-                warnMsg.style.padding = '6px 16px';
-                warnMsg.style.borderRadius = '20px';
-                warnMsg.style.fontSize = '0.7rem';
-                warnMsg.style.color = '#ffbc9a';
-                document.body.appendChild(warnMsg);
-                setTimeout(() => warnMsg.remove(), 2000);
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        function addEmployee(fullName, position, password) {
+            if (!fullName.trim()) {
+                showToast('❌ Введите ФИО', true);
+                return false;
+            }
+            if (!position.trim()) {
+                showToast('❌ Введите должность', true);
+                return false;
+            }
+            if (!password.trim()) {
+                showToast('❌ Введите пароль', true);
+                return false;
+            }
+
+            // Проверка на уникальность ФИО
+            const existing = employees.find(emp => emp.fullName.toLowerCase() === fullName.trim().toLowerCase());
+            if (existing) {
+                showToast('❌ Сотрудник с таким ФИО уже существует', true);
+                return false;
+            }
+
+            const newEmployee = {
+                id: generateId(),
+                fullName: fullName.trim(),
+                position: position.trim(),
+                password: password.trim(),
+                level: 'НАЧАЛЬНЫЙ',      // Уровень допуска по умолчанию
+                role: 'Сотрудник',        // Должность в иерархии
+                createdAt: new Date().toISOString()
+            };
+
+            employees.push(newEmployee);
+            saveEmployees();
+            renderEmployees();
+            showToast(`✅ ${fullName} добавлен в сеть. Уровень: НАЧАЛЬНЫЙ`);
+            return true;
+        }
+
+        function deleteEmployee(id) {
+            const employee = employees.find(emp => emp.id === id);
+            if (employee && confirm(`Удалить сотрудника "${employee.fullName}" из сети?`)) {
+                employees = employees.filter(emp => emp.id !== id);
+                saveEmployees();
+                renderEmployees();
+                showToast(`🗑️ Сотрудник удалён`);
+            }
+        }
+
+        function updateEmployee(id, newLevel, newRole) {
+            const employee = employees.find(emp => emp.id === id);
+            if (employee) {
+                employee.level = newLevel;
+                employee.role = newRole;
+                saveEmployees();
+                renderEmployees();
+                showToast(`📌 ${employee.fullName}: уровень "${newLevel}", должность "${newRole}"`);
+            }
+        }
+
+        function renderEmployees() {
+            const container = document.getElementById('employeesList');
+            if (!container) return;
+
+            if (employees.length === 0) {
+                container.innerHTML = '<div class="empty-list">Нет добавленных сотрудников</div>';
+                updateCount();
                 return;
             }
-            
-            if (isBootCompleted && !sessionActive) {
-                sessionActive = true;
-                confirmBtn.disabled = true;
-                panel.classList.add('blur-effect');
-                
-                showNicknameModal((enteredNick) => {
-                    panel.classList.remove('blur-effect');
-                    
-                    const initMsg = document.createElement('div');
-                    initMsg.innerText = `✅ Инициализация оператора "${enteredNick}" завершена. Доступ открыт.`;
-                    initMsg.style.position = 'fixed';
-                    initMsg.style.bottom = '90px';
-                    initMsg.style.left = '50%';
-                    initMsg.style.transform = 'translateX(-50%)';
-                    initMsg.style.backgroundColor = '#0c2e28';
-                    initMsg.style.border = '1px solid #3ce6b5';
-                    initMsg.style.padding = '10px 22px';
-                    initMsg.style.borderRadius = '40px';
-                    initMsg.style.fontFamily = 'monospace';
-                    initMsg.style.fontSize = '0.8rem';
-                    initMsg.style.color = '#e5ffef';
-                    initMsg.style.zIndex = '1100';
-                    initMsg.style.whiteSpace = 'nowrap';
-                    if (window.innerWidth < 600) initMsg.style.whiteSpace = 'normal';
-                    initMsg.style.textAlign = 'center';
-                    document.body.appendChild(initMsg);
-                    setTimeout(() => {
-                        initMsg.style.opacity = '0';
-                        setTimeout(() => initMsg.remove(), 600);
-                    }, 2800);
-                    
-                    showNRPTooltip();
-                    
-                    const termExtra = document.createElement('div');
-                    termExtra.className = 'line-system';
-                    termExtra.style.marginTop = '10px';
-                    termExtra.innerHTML = `<span class="prompt">[NRP/auth]></span> <span class="sys-msg">Доступ активирован: /ask [запрос]</span>`;
-                    const logContainer = document.getElementById('logArea');
-                    if (logContainer && !document.getElementById('nrpHintTerm')) {
-                        termExtra.id = 'nrpHintTerm';
-                        logContainer.appendChild(termExtra);
+
+            container.innerHTML = '';
+            employees.forEach(emp => {
+                const card = document.createElement('div');
+                card.className = 'employee-card';
+
+                // Информация о сотруднике
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'employee-info';
+                infoDiv.innerHTML = `
+                    <div class="employee-name">${escapeHtml(emp.fullName)}</div>
+                    <div class="employee-meta">
+                        <span>📌 ${escapeHtml(emp.position)}</span>
+                        <span>🔐 Пароль: ${'•'.repeat(Math.min(emp.password.length, 8))}</span>
+                        <span>🆔 ID: ${emp.id.slice(-6)}</span>
+                    </div>
+                `;
+
+                // Управление уровнями и должностями
+                const controlsDiv = document.createElement('div');
+                controlsDiv.className = 'employee-controls';
+
+                // Выбор уровня допуска
+                const levelSelect = document.createElement('select');
+                levelSelect.className = 'level-select';
+                const levels = ['НАЧАЛЬНЫЙ', 'БАЗОВЫЙ', 'ПОВЫШЕННЫЙ', 'ВЫСОКИЙ', 'КРИТИЧЕСКИЙ'];
+                levels.forEach(lvl => {
+                    const option = document.createElement('option');
+                    option.value = lvl;
+                    option.textContent = lvl;
+                    if (emp.level === lvl) option.selected = true;
+                    levelSelect.appendChild(option);
+                });
+
+                // Выбор должности
+                const roleSelect = document.createElement('select');
+                roleSelect.className = 'role-select';
+                const roles = ['Сотрудник', 'Специалист', 'Ведущий специалист', 'Руководитель отдела', 'Зам. директора', 'Директор'];
+                roles.forEach(rl => {
+                    const option = document.createElement('option');
+                    option.value = rl;
+                    option.textContent = rl;
+                    if (emp.role === rl) option.selected = true;
+                    roleSelect.appendChild(option);
+                });
+
+                const saveBtn = document.createElement('button');
+                saveBtn.className = 'save-user-btn';
+                saveBtn.textContent = '💾 Сохранить';
+                saveBtn.onclick = () => {
+                    updateEmployee(emp.id, levelSelect.value, roleSelect.value);
+                };
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-user-btn';
+                deleteBtn.textContent = '🗑️ Удалить';
+                deleteBtn.onclick = () => deleteEmployee(emp.id);
+
+                controlsDiv.appendChild(levelSelect);
+                controlsDiv.appendChild(roleSelect);
+                controlsDiv.appendChild(saveBtn);
+                controlsDiv.appendChild(deleteBtn);
+
+                card.appendChild(infoDiv);
+                card.appendChild(controlsDiv);
+                container.appendChild(card);
+            });
+
+            updateCount();
+        }
+
+        // Простая защита от XSS
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        // Обработка регистрации
+        document.getElementById('registerBtn').addEventListener('click', () => {
+            const fullName = document.getElementById('fullName').value;
+            const position = document.getElementById('position').value;
+            const password = document.getElementById('password').value;
+            if (addEmployee(fullName, position, password)) {
+                document.getElementById('fullName').value = '';
+                document.getElementById('position').value = '';
+                document.getElementById('password').value = '';
+            }
+        });
+
+        // Добавим возможность нажать Enter
+        const inputs = ['fullName', 'position', 'password'];
+        inputs.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        document.getElementById('registerBtn').click();
                     }
-                    
-                    confirmBtn.disabled = false;
                 });
             }
-        }
-
-        confirmBtn.addEventListener('click', confirmAndStart);
-        resetBtn.addEventListener('click', () => {
-            if (sessionActive) {
-                const warnBlock = document.createElement('div');
-                warnBlock.innerText = '⛔ Смена уже активирована. Сброс недоступен.';
-                warnBlock.style.position = 'fixed';
-                warnBlock.style.bottom = '70px';
-                warnBlock.style.left = '50%';
-                warnBlock.style.transform = 'translateX(-50%)';
-                warnBlock.style.background = '#1e2a28';
-                warnBlock.style.border = '1px solid #de9d6e';
-                warnBlock.style.padding = '6px 16px';
-                warnBlock.style.borderRadius = '20px';
-                warnBlock.style.color = '#ffd7b5';
-                document.body.appendChild(warnBlock);
-                setTimeout(() => warnBlock.remove(), 2000);
-                return;
-            }
-            fullReset();
         });
-        
-        startBoot();
-        confirmBtn.disabled = true;
-        confirmBtn.style.opacity = '0.7';
-        sessionActive = false;
+
+        // Загрузка данных при старте
+        loadEmployees();
     })();
 </script>
 </body>
