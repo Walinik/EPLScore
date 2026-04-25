@@ -6,6 +6,7 @@ let isEplsMode = false;
 let refreshInterval = null;
 let lastMessageTimestamp = 0;
 let isLoadingMessages = false;
+let isUserAtBottom = true; // следим, где находится пользователь
 
 // ===== ВСПОМОГАТЕЛЬНЫЕ =====
 function showToast(msg, isErr = false) {
@@ -22,7 +23,7 @@ function escapeHtml(str) {
     return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
 }
 
-// ===== ГЛАВНОЕ: ОДИНАКОВАЯ КОМНАТА ДЛЯ ДВОИХ =====
+// ===== КОМНАТА ДЛЯ ДВОИХ =====
 function getPrivateRoom(user1, user2) {
     const ids = [user1.id, user2.id].sort();
     return `private_${ids[0]}_${ids[1]}`;
@@ -72,7 +73,7 @@ async function loadEmployees() {
     return employees;
 }
 
-// Только новые сообщения (после последней временной метки)
+// Загрузка только НОВЫХ сообщений (без перерисовки всего чата)
 async function loadNewMessages() {
     if (!currentUser || !currentRoom || isLoadingMessages) return;
     
@@ -82,10 +83,8 @@ async function loadNewMessages() {
         const newMessages = await supabaseFetch(query);
         
         if (newMessages && newMessages.length > 0) {
-            // Обновляем последнюю временную метку
             lastMessageTimestamp = newMessages[newMessages.length - 1].timestamp;
-            // Добавляем только новые сообщения
-            appendMessages(newMessages);
+            appendMessagesWithoutScroll(newMessages);
         }
     } catch (e) {
         console.error('Load new messages error:', e);
@@ -118,28 +117,25 @@ function renderFullMessages(messages) {
     messages.forEach(msg => {
         addMessageToContainer(msg, container);
     });
+    
+    // При полной загрузке скроллим вниз
     container.scrollTop = container.scrollHeight;
+    isUserAtBottom = true;
 }
 
-function appendMessages(newMessages) {
+// Добавляем сообщения БЕЗ автоматического скролла
+function appendMessagesWithoutScroll(newMessages) {
     const container = document.getElementById('messages');
     if (!container || !newMessages || !newMessages.length) return;
     
-    // Если контейнер пуст или показывает "Нет сообщений" — просто перерисовываем
-    if (container.children.length === 0 || 
-        (container.children.length === 1 && container.children[0].classList?.contains('loading'))) {
-        renderFullMessages(newMessages);
-        return;
-    }
+    const wasAtBottom = isUserAtBottom;
     
-    // Добавляем только новые сообщения
     newMessages.forEach(msg => {
         addMessageToContainer(msg, container);
     });
     
-    // Прокручиваем вниз, только если пользователь был внизу
-    const shouldAutoScroll = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
-    if (shouldAutoScroll) {
+    // Если пользователь был внизу — скроллим вниз, иначе не трогаем
+    if (wasAtBottom) {
         container.scrollTop = container.scrollHeight;
     }
 }
@@ -150,6 +146,17 @@ function addMessageToContainer(msg, container) {
     const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     div.innerHTML = `<div class="author ${msg.is_epls ? 'epls' : 'normal'}">${escapeHtml(msg.author_name)} <span class="time">${time}</span></div><div class="text">${escapeHtml(msg.text)}</div>`;
     container.appendChild(div);
+}
+
+// Отслеживаем положение скролла
+function initScrollTracking() {
+    const container = document.getElementById('messages');
+    if (!container) return;
+    
+    container.addEventListener('scroll', () => {
+        const isBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+        isUserAtBottom = isBottom;
+    });
 }
 
 async function sendMessage() {
@@ -192,11 +199,11 @@ async function sendMessage() {
     const response = await supabasePost('chat_messages', newMsg);
     if (response.ok) {
         input.value = '';
-        // Обновляем timestamp и добавляем сообщение мгновенно
         lastMessageTimestamp = newMsg.timestamp;
-        addMessageToContainer(newMsg, document.getElementById('messages'));
         const container = document.getElementById('messages');
+        addMessageToContainer(newMsg, container);
         container.scrollTop = container.scrollHeight;
+        isUserAtBottom = true;
     } else {
         showToast('❌ Ошибка отправки', true);
     }
@@ -246,12 +253,12 @@ function renderChatList() {
     });
 }
 
-// ===== АДМИН-ФУНКЦИИ (без изменений) =====
+// ===== АДМИН-ФУНКЦИИ (теперь без сбросов) =====
 function renderAdminTable() {
     const tbody = document.getElementById('empTableBody');
     if (!tbody) return;
     if (!employees.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="loading">Нет сотрудников</td></td>';
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">Нет сотрудников</td></tr>';
         return;
     }
     tbody.innerHTML = '';
@@ -303,67 +310,65 @@ function renderAdminTable() {
         const saveBtn = document.createElement('button');
         saveBtn.textContent = '💾 Сохранить';
         saveBtn.className = 'btn-sm';
-        saveBtn.onclick = () => updateEmployee(id);
+        saveBtn.onclick = async () => {
+            const full_name = document.getElementById(`name_${id}`).value;
+            const position = document.getElementById(`pos_${id}`).value;
+            const password = document.getElementById(`pwd_${id}`).value;
+            const level = document.getElementById(`lvl_${id}`).value;
+            const is_admin = document.getElementById(`admin_${id}`).checked;
+
+            const empTarget = employees.find(e => e.id === id);
+            if (empTarget?.full_name === 'Системный Администратор' && !is_admin) {
+                showToast('❌ Нельзя снять права у главного администратора', true);
+                return;
+            }
+
+            const response = await supabasePatch('employees', id, { 
+                full_name, position, password, level: parseInt(level), is_admin 
+            });
+            if (response.ok) {
+                showToast(`✅ Обновлено`);
+                await loadEmployees();
+                renderAdminTable();
+                renderChatList();
+            } else {
+                showToast('❌ Ошибка обновления', true);
+            }
+        };
 
         const delBtn = document.createElement('button');
         delBtn.textContent = '🗑️ Удалить';
         delBtn.className = 'btn-sm btn-del';
-        delBtn.onclick = () => deleteEmployee(id);
+        delBtn.onclick = async () => {
+            const empTarget = employees.find(e => e.id === id);
+            if (!empTarget) return;
+            if (empTarget.full_name === 'Системный Администратор') {
+                showToast('❌ Нельзя удалить главного администратора', true);
+                return;
+            }
+            if (confirm(`Удалить "${empTarget.full_name}"?`)) {
+                const response = await supabaseDelete('employees', id);
+                if (response.ok) {
+                    showToast(`✅ Удалён`);
+                    await loadEmployees();
+                    renderAdminTable();
+                    renderChatList();
+                    if (currentRoom === getPrivateRoom(currentUser, empTarget)) {
+                        const first = employees.find(e => e.id !== currentUser.id);
+                        if (first) currentRoom = getPrivateRoom(currentUser, first);
+                        lastMessageTimestamp = 0;
+                        await loadFullMessages();
+                    }
+                } else {
+                    showToast('❌ Ошибка удаления', true);
+                }
+            }
+        };
         if (emp.full_name === 'Системный Администратор') delBtn.disabled = true;
 
         actCell.appendChild(saveBtn);
         actCell.appendChild(delBtn);
     });
-}
-
-async function updateEmployee(id) {
-    const full_name = document.getElementById(`name_${id}`).value;
-    const position = document.getElementById(`pos_${id}`).value;
-    const password = document.getElementById(`pwd_${id}`).value;
-    const level = document.getElementById(`lvl_${id}`).value;
-    const is_admin = document.getElementById(`admin_${id}`).checked;
-
-    const emp = employees.find(e => e.id === id);
-    if (emp?.full_name === 'Системный Администратор' && !is_admin) {
-        showToast('❌ Нельзя снять права у главного администратора', true);
-        return;
-    }
-
-    const response = await supabasePatch('employees', id, { full_name, position, password, level: parseInt(level), is_admin });
-    if (response.ok) {
-        showToast(`✅ Обновлено`);
-        await loadEmployees();
-        renderAdminTable();
-        renderChatList();
-    } else {
-        showToast('❌ Ошибка обновления', true);
-    }
-}
-
-async function deleteEmployee(id) {
-    const emp = employees.find(e => e.id === id);
-    if (!emp) return;
-    if (emp.full_name === 'Системный Администратор') {
-        showToast('❌ Нельзя удалить главного администратора', true);
-        return;
-    }
-    if (confirm(`Удалить "${emp.full_name}"?`)) {
-        const response = await supabaseDelete('employees', id);
-        if (response.ok) {
-            showToast(`✅ Удалён`);
-            await loadEmployees();
-            renderAdminTable();
-            renderChatList();
-            if (currentRoom === getPrivateRoom(currentUser, emp)) {
-                const first = employees.find(e => e.id !== currentUser.id);
-                if (first) currentRoom = getPrivateRoom(currentUser, first);
-                lastMessageTimestamp = 0;
-                await loadFullMessages();
-            }
-        } else {
-            showToast('❌ Ошибка удаления', true);
-        }
-    }
 }
 
 async function registerEmployee() {
@@ -445,7 +450,7 @@ async function changePassword() {
     }
 }
 
-// ===== ВХОД И ВЫХОД =====
+// ===== ВХОД =====
 async function login() {
     const fullname = document.getElementById('loginFullname').value.trim();
     const password = document.getElementById('loginPassword').value.trim();
@@ -517,14 +522,13 @@ async function login() {
 
 function startAutoRefresh() {
     if (refreshInterval) clearInterval(refreshInterval);
-    // Обновляем каждые 3 секунды, но только новые сообщения
     refreshInterval = setInterval(async () => {
         if (currentUser) {
             await loadNewMessages();
             if (currentUser.is_admin) {
-                const oldEmployeesCount = employees.length;
+                const oldCount = employees.length;
                 await loadEmployees();
-                if (oldEmployeesCount !== employees.length) {
+                if (oldCount !== employees.length) {
                     renderAdminTable();
                     renderChatList();
                 }
@@ -567,4 +571,6 @@ document.getElementById('eplsModeBtn').onclick = () => {
     showToast(isEplsMode ? 'Вы пишете от имени EPLS' : 'Вы пишете от своего имени');
 };
 
+// Инициализация
 loadEmployees();
+initScrollTracking();
