@@ -6,7 +6,7 @@ let isEplsMode = false;
 let refreshInterval = null;
 let lastMessageTimestamp = 0;
 let isLoadingMessages = false;
-let isUserAtBottom = true; // следим, где находится пользователь
+let isUserAtBottom = true;
 
 // ===== ВСПОМОГАТЕЛЬНЫЕ =====
 function showToast(msg, isErr = false) {
@@ -23,10 +23,14 @@ function escapeHtml(str) {
     return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
 }
 
-// ===== КОМНАТА ДЛЯ ДВОИХ =====
+// ===== КОМНАТЫ =====
 function getPrivateRoom(user1, user2) {
     const ids = [user1.id, user2.id].sort();
     return `private_${ids[0]}_${ids[1]}`;
+}
+
+function getRequestsRoom(adminId) {
+    return `requests_${adminId}`;
 }
 
 // ===== ЗАПРОСЫ К SUPABASE =====
@@ -73,7 +77,6 @@ async function loadEmployees() {
     return employees;
 }
 
-// Загрузка только НОВЫХ сообщений (без перерисовки всего чата)
 async function loadNewMessages() {
     if (!currentUser || !currentRoom || isLoadingMessages) return;
     
@@ -93,7 +96,6 @@ async function loadNewMessages() {
     }
 }
 
-// Полная загрузка (при смене комнаты)
 async function loadFullMessages() {
     if (!currentUser || !currentRoom) return;
     
@@ -118,12 +120,10 @@ function renderFullMessages(messages) {
         addMessageToContainer(msg, container);
     });
     
-    // При полной загрузке скроллим вниз
     container.scrollTop = container.scrollHeight;
     isUserAtBottom = true;
 }
 
-// Добавляем сообщения БЕЗ автоматического скролла
 function appendMessagesWithoutScroll(newMessages) {
     const container = document.getElementById('messages');
     if (!container || !newMessages || !newMessages.length) return;
@@ -134,7 +134,6 @@ function appendMessagesWithoutScroll(newMessages) {
         addMessageToContainer(msg, container);
     });
     
-    // Если пользователь был внизу — скроллим вниз, иначе не трогаем
     if (wasAtBottom) {
         container.scrollTop = container.scrollHeight;
     }
@@ -148,7 +147,6 @@ function addMessageToContainer(msg, container) {
     container.appendChild(div);
 }
 
-// Отслеживаем положение скролла
 function initScrollTracking() {
     const container = document.getElementById('messages');
     if (!container) return;
@@ -159,11 +157,13 @@ function initScrollTracking() {
     });
 }
 
+// ===== ОТПРАВКА СООБЩЕНИЙ С ПОДДЕРЖКОЙ /ask =====
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const text = input.value.trim();
     if (!text) return;
 
+    // Команда /clear
     if (text === '/clear') {
         if (confirm('Вы уверены, что хотите очистить историю этого чата?')) {
             const response = await fetch(`${SUPABASE_URL}/rest/v1/chat_messages?room=eq.${currentRoom}`, {
@@ -182,6 +182,45 @@ async function sendMessage() {
         return;
     }
 
+    // КОМАНДА /ask (только для сотрудников)
+    if (text.startsWith('/ask ') && !currentUser.is_admin) {
+        const question = text.substring(5).trim();
+        if (!question) {
+            showToast('❌ Введите вопрос после /ask', true);
+            input.value = '';
+            return;
+        }
+
+        // Находим администратора
+        const admin = employees.find(e => e.is_admin === true);
+        if (!admin) {
+            showToast('❌ Администратор не найден в системе', true);
+            input.value = '';
+            return;
+        }
+
+        const requestsRoom = getRequestsRoom(admin.id);
+        const askMessage = {
+            id: Date.now().toString(),
+            room: requestsRoom,
+            author_id: currentUser.id,
+            author_name: currentUser.display_name || currentUser.full_name,
+            text: `📝 ЗАПРОС ОТ ${currentUser.display_name || currentUser.full_name}: ${question}`,
+            is_epls: false,
+            timestamp: Date.now()
+        };
+
+        const response = await supabasePost('chat_messages', askMessage);
+        if (response.ok) {
+            showToast(`✅ Запрос отправлен администратору`);
+        } else {
+            showToast('❌ Ошибка отправки запроса', true);
+        }
+        input.value = '';
+        return;
+    }
+
+    // Обычное сообщение
     const authorName = isEplsMode
         ? (currentUser.epls_name || '🤖 EPLS')
         : (currentUser.display_name || currentUser.full_name);
@@ -216,6 +255,7 @@ function renderChatList() {
     container.innerHTML = '';
 
     if (!currentUser.is_admin) {
+        // Сотрудник: только личный чат с админом
         const admin = employees.find(e => e.is_admin === true);
         if (admin) {
             const roomId = getPrivateRoom(currentUser, admin);
@@ -235,6 +275,23 @@ function renderChatList() {
         return;
     }
 
+    // Админ: показываем личные чаты + комнату запросов
+    const requestsRoomId = getRequestsRoom(currentUser.id);
+    const requestsLi = document.createElement('li');
+    requestsLi.textContent = `🔔 ЗАПРОСЫ (${getUnreadRequestsCount()})`;
+    requestsLi.className = currentRoom === requestsRoomId ? 'active' : '';
+    requestsLi.onclick = async () => {
+        if (currentRoom !== requestsRoomId) {
+            currentRoom = requestsRoomId;
+            lastMessageTimestamp = 0;
+            renderChatList();
+            await loadFullMessages();
+            markRequestsAsRead();
+        }
+    };
+    container.appendChild(requestsLi);
+
+    // Личные чаты с сотрудниками
     employees.forEach(emp => {
         if (emp.id === currentUser.id) return;
         const roomId = getPrivateRoom(currentUser, emp);
@@ -253,7 +310,17 @@ function renderChatList() {
     });
 }
 
-// ===== АДМИН-ФУНКЦИИ (теперь без сбросов) =====
+// Подсчёт непрочитанных запросов (для отображения в скобках)
+function getUnreadRequestsCount() {
+    // Простая реализация: возвращает 0, можно расширить
+    return 0;
+}
+
+function markRequestsAsRead() {
+    // Можно добавить логику отметки прочитанных
+}
+
+// ===== АДМИН-ФУНКЦИИ =====
 function renderAdminTable() {
     const tbody = document.getElementById('empTableBody');
     if (!tbody) return;
@@ -495,10 +562,8 @@ async function login() {
 
     if (isAdmin) {
         renderAdminTable();
-        const firstEmp = employees.find(e => e.id !== currentUser.id);
-        if (firstEmp) {
-            currentRoom = getPrivateRoom(currentUser, firstEmp);
-        }
+        // По умолчанию открываем комнату запросов для админа
+        currentRoom = getRequestsRoom(currentUser.id);
     } else {
         const admin = employees.find(e => e.is_admin === true);
         if (admin) {
@@ -571,6 +636,5 @@ document.getElementById('eplsModeBtn').onclick = () => {
     showToast(isEplsMode ? 'Вы пишете от имени EPLS' : 'Вы пишете от своего имени');
 };
 
-// Инициализация
 loadEmployees();
 initScrollTracking();
