@@ -100,10 +100,10 @@ async function sendMessage() {
                 headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
             });
             if (response.ok) {
-                showToast('Чат очищен');
+                showToast('✅ Чат очищен');
                 await loadMessages();
             } else {
-                showToast('Ошибка очистки', true);
+                showToast('❌ Ошибка очистки', true);
             }
         }
         document.getElementById('msgInput').value = '';
@@ -129,7 +129,7 @@ async function sendMessage() {
         document.getElementById('msgInput').value = '';
         await loadMessages();
     } else {
-        showToast('Ошибка отправки', true);
+        showToast('❌ Ошибка отправки', true);
     }
 }
 
@@ -137,10 +137,9 @@ async function sendMessage() {
 function renderChatList() {
     const container = document.getElementById('chatList');
     if (!container || !currentUser) return;
-
     container.innerHTML = '';
 
-    // Для сотрудника — показываем только чат с администратором
+    // Для сотрудника — только чат с администратором
     if (!currentUser.is_admin) {
         const admin = employees.find(e => e.is_admin === true);
         if (admin) {
@@ -158,7 +157,7 @@ function renderChatList() {
         return;
     }
 
-    // Для админа — показываем список всех сотрудников
+    // Для админа — список всех сотрудников
     employees.forEach(emp => {
         if (emp.id === currentUser.id) return;
         const roomId = `private_${emp.id}`;
@@ -179,7 +178,7 @@ function renderAdminTable() {
     const tbody = document.getElementById('empTableBody');
     if (!tbody) return;
     if (!employees.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="loading">Нет сотрудников</tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">Нет сотрудников</td></td>';
         return;
     }
     tbody.innerHTML = '';
@@ -282,7 +281,6 @@ async function deleteEmployee(id) {
             await loadEmployees();
             renderAdminTable();
             renderChatList();
-            // Если удалили текущий чат — переключаемся на первый
             if (currentRoom === `private_${id}`) {
                 const first = employees.find(e => e.id !== currentUser.id);
                 if (first) currentRoom = `private_${first.id}`;
@@ -407,18 +405,17 @@ async function login() {
     document.getElementById('displayNameInput').value = currentUser.display_name;
     document.getElementById('eplsNameInput').value = currentUser.epls_name;
 
-    // Права доступа для сотрудников и админов
     const isAdmin = currentUser.is_admin === true;
     document.getElementById('adminPanel').classList.toggle('hidden', !isAdmin);
     document.getElementById('eplsNameRow').classList.toggle('hidden', !isAdmin);
     document.getElementById('chatSidebar').classList.toggle('hidden', !isAdmin);
     
-    // Кнопка EPLS доступна только админу
+    // Кнопка EPLS только для админа
     const eplsContainer = document.getElementById('eplsToggleContainer');
     eplsContainer.classList.toggle('hidden', !isAdmin);
     if (!isAdmin) isEplsMode = false;
 
-    // Выбираем чат
+    // Автоматический выбор комнаты
     if (isAdmin) {
         renderAdminTable();
         const firstEmp = employees.find(e => e.id !== currentUser.id);
@@ -470,7 +467,7 @@ document.getElementById('changePasswordBtn').onclick = changePassword;
 document.getElementById('registerBtn').onclick = registerEmployee;
 
 document.getElementById('eplsModeBtn').onclick = () => {
-    if (!currentUser.is_admin) return;
+    if (!currentUser?.is_admin) return;
     isEplsMode = !isEplsMode;
     const btn = document.getElementById('eplsModeBtn');
     if (isEplsMode) {
