@@ -4,7 +4,8 @@ let employees = [];
 let currentRoom = null;
 let isEplsMode = false;
 let refreshInterval = null;
-let lastMessageId = null;
+let lastMessageTimestamp = 0;
+let isLoadingMessages = false;
 
 // ===== ВСПОМОГАТЕЛЬНЫЕ =====
 function showToast(msg, isErr = false) {
@@ -13,7 +14,7 @@ function showToast(msg, isErr = false) {
     toast.style.borderLeftColor = isErr ? '#ff7a5e' : '#4bffc3';
     toast.innerText = msg;
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+    setTimeout(() => toast.remove(), 2500);
 }
 
 function escapeHtml(str) {
@@ -23,7 +24,6 @@ function escapeHtml(str) {
 
 // ===== ГЛАВНОЕ: ОДИНАКОВАЯ КОМНАТА ДЛЯ ДВОИХ =====
 function getPrivateRoom(user1, user2) {
-    // Всегда сортируем ID, чтобы получить одинаковый результат
     const ids = [user1.id, user2.id].sort();
     return `private_${ids[0]}_${ids[1]}`;
 }
@@ -72,31 +72,84 @@ async function loadEmployees() {
     return employees;
 }
 
-async function loadMessages() {
-    if (!currentUser || !currentRoom) return;
-    const messages = await supabaseFetch(`chat_messages?select=*&order=timestamp.asc&room=eq.${currentRoom}`);
-    renderMessages(messages);
-    if (messages && messages.length > 0) {
-        lastMessageId = messages[messages.length - 1].id;
+// Только новые сообщения (после последней временной метки)
+async function loadNewMessages() {
+    if (!currentUser || !currentRoom || isLoadingMessages) return;
+    
+    isLoadingMessages = true;
+    try {
+        const query = `chat_messages?select=*&order=timestamp.asc&room=eq.${currentRoom}&timestamp=gt.${lastMessageTimestamp}`;
+        const newMessages = await supabaseFetch(query);
+        
+        if (newMessages && newMessages.length > 0) {
+            // Обновляем последнюю временную метку
+            lastMessageTimestamp = newMessages[newMessages.length - 1].timestamp;
+            // Добавляем только новые сообщения
+            appendMessages(newMessages);
+        }
+    } catch (e) {
+        console.error('Load new messages error:', e);
+    } finally {
+        isLoadingMessages = false;
     }
 }
 
-function renderMessages(messages) {
+// Полная загрузка (при смене комнаты)
+async function loadFullMessages() {
+    if (!currentUser || !currentRoom) return;
+    
+    const messages = await supabaseFetch(`chat_messages?select=*&order=timestamp.asc&room=eq.${currentRoom}`);
+    if (messages && messages.length > 0) {
+        lastMessageTimestamp = messages[messages.length - 1].timestamp;
+    }
+    renderFullMessages(messages);
+}
+
+function renderFullMessages(messages) {
     const container = document.getElementById('messages');
     if (!container) return;
+    
     if (!messages || !messages.length) {
         container.innerHTML = '<div class="loading">Нет сообщений. Напишите что-нибудь!</div>';
         return;
     }
+    
     container.innerHTML = '';
     messages.forEach(msg => {
-        const div = document.createElement('div');
-        div.className = `message ${msg.is_epls ? 'epls' : ''}`;
-        const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        div.innerHTML = `<div class="author ${msg.is_epls ? 'epls' : 'normal'}">${escapeHtml(msg.author_name)} <span class="time">${time}</span></div><div class="text">${escapeHtml(msg.text)}</div>`;
-        container.appendChild(div);
+        addMessageToContainer(msg, container);
     });
     container.scrollTop = container.scrollHeight;
+}
+
+function appendMessages(newMessages) {
+    const container = document.getElementById('messages');
+    if (!container || !newMessages || !newMessages.length) return;
+    
+    // Если контейнер пуст или показывает "Нет сообщений" — просто перерисовываем
+    if (container.children.length === 0 || 
+        (container.children.length === 1 && container.children[0].classList?.contains('loading'))) {
+        renderFullMessages(newMessages);
+        return;
+    }
+    
+    // Добавляем только новые сообщения
+    newMessages.forEach(msg => {
+        addMessageToContainer(msg, container);
+    });
+    
+    // Прокручиваем вниз, только если пользователь был внизу
+    const shouldAutoScroll = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+    if (shouldAutoScroll) {
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+function addMessageToContainer(msg, container) {
+    const div = document.createElement('div');
+    div.className = `message ${msg.is_epls ? 'epls' : ''}`;
+    const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    div.innerHTML = `<div class="author ${msg.is_epls ? 'epls' : 'normal'}">${escapeHtml(msg.author_name)} <span class="time">${time}</span></div><div class="text">${escapeHtml(msg.text)}</div>`;
+    container.appendChild(div);
 }
 
 async function sendMessage() {
@@ -105,14 +158,15 @@ async function sendMessage() {
     if (!text) return;
 
     if (text === '/clear') {
-        if (confirm('Очистить историю этого чата?')) {
+        if (confirm('Вы уверены, что хотите очистить историю этого чата?')) {
             const response = await fetch(`${SUPABASE_URL}/rest/v1/chat_messages?room=eq.${currentRoom}`, {
                 method: 'DELETE',
                 headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
             });
             if (response.ok) {
                 showToast('✅ Чат очищен');
-                await loadMessages();
+                lastMessageTimestamp = 0;
+                await loadFullMessages();
             } else {
                 showToast('❌ Ошибка очистки', true);
             }
@@ -138,7 +192,11 @@ async function sendMessage() {
     const response = await supabasePost('chat_messages', newMsg);
     if (response.ok) {
         input.value = '';
-        await loadMessages();
+        // Обновляем timestamp и добавляем сообщение мгновенно
+        lastMessageTimestamp = newMsg.timestamp;
+        addMessageToContainer(newMsg, document.getElementById('messages'));
+        const container = document.getElementById('messages');
+        container.scrollTop = container.scrollHeight;
     } else {
         showToast('❌ Ошибка отправки', true);
     }
@@ -151,7 +209,6 @@ function renderChatList() {
     container.innerHTML = '';
 
     if (!currentUser.is_admin) {
-        // Сотрудник: один чат с администратором
         const admin = employees.find(e => e.is_admin === true);
         if (admin) {
             const roomId = getPrivateRoom(currentUser, admin);
@@ -161,8 +218,9 @@ function renderChatList() {
             li.onclick = async () => {
                 if (currentRoom !== roomId) {
                     currentRoom = roomId;
+                    lastMessageTimestamp = 0;
                     renderChatList();
-                    await loadMessages();
+                    await loadFullMessages();
                 }
             };
             container.appendChild(li);
@@ -170,7 +228,6 @@ function renderChatList() {
         return;
     }
 
-    // Админ: список всех сотрудников
     employees.forEach(emp => {
         if (emp.id === currentUser.id) return;
         const roomId = getPrivateRoom(currentUser, emp);
@@ -178,20 +235,23 @@ function renderChatList() {
         li.textContent = `👤 ${emp.display_name || emp.full_name}`;
         li.className = currentRoom === roomId ? 'active' : '';
         li.onclick = async () => {
-            currentRoom = roomId;
-            renderChatList();
-            await loadMessages();
+            if (currentRoom !== roomId) {
+                currentRoom = roomId;
+                lastMessageTimestamp = 0;
+                renderChatList();
+                await loadFullMessages();
+            }
         };
         container.appendChild(li);
     });
 }
 
-// ===== АДМИН-ФУНКЦИИ =====
+// ===== АДМИН-ФУНКЦИИ (без изменений) =====
 function renderAdminTable() {
     const tbody = document.getElementById('empTableBody');
     if (!tbody) return;
     if (!employees.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="loading">Нет сотрудников</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">Нет сотрудников</td></td>';
         return;
     }
     tbody.innerHTML = '';
@@ -297,7 +357,8 @@ async function deleteEmployee(id) {
             if (currentRoom === getPrivateRoom(currentUser, emp)) {
                 const first = employees.find(e => e.id !== currentUser.id);
                 if (first) currentRoom = getPrivateRoom(currentUser, first);
-                await loadMessages();
+                lastMessageTimestamp = 0;
+                await loadFullMessages();
             }
         } else {
             showToast('❌ Ошибка удаления', true);
@@ -384,7 +445,7 @@ async function changePassword() {
     }
 }
 
-// ===== ВХОД =====
+// ===== ВХОД И ВЫХОД =====
 async function login() {
     const fullname = document.getElementById('loginFullname').value.trim();
     const password = document.getElementById('loginPassword').value.trim();
@@ -427,7 +488,6 @@ async function login() {
     eplsContainer.classList.toggle('hidden', !isAdmin);
     if (!isAdmin) isEplsMode = false;
 
-    // Выбор комнаты
     if (isAdmin) {
         renderAdminTable();
         const firstEmp = employees.find(e => e.id !== currentUser.id);
@@ -446,8 +506,9 @@ async function login() {
         }
     }
 
+    lastMessageTimestamp = 0;
     renderChatList();
-    await loadMessages();
+    await loadFullMessages();
     startAutoRefresh();
 
     btn.disabled = false;
@@ -456,13 +517,17 @@ async function login() {
 
 function startAutoRefresh() {
     if (refreshInterval) clearInterval(refreshInterval);
+    // Обновляем каждые 3 секунды, но только новые сообщения
     refreshInterval = setInterval(async () => {
         if (currentUser) {
-            await loadMessages();
+            await loadNewMessages();
             if (currentUser.is_admin) {
+                const oldEmployeesCount = employees.length;
                 await loadEmployees();
-                renderAdminTable();
-                renderChatList();
+                if (oldEmployeesCount !== employees.length) {
+                    renderAdminTable();
+                    renderChatList();
+                }
             }
         }
     }, 3000);
@@ -471,6 +536,7 @@ function startAutoRefresh() {
 function logout() {
     if (refreshInterval) clearInterval(refreshInterval);
     currentUser = null;
+    lastMessageTimestamp = 0;
     document.getElementById('mainInterface').classList.add('hidden');
     document.getElementById('loginCard').classList.remove('hidden');
     document.getElementById('loginFullname').value = '';
