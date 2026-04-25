@@ -2,7 +2,6 @@
 let currentUser = null;
 let employees = [];
 let currentRoom = null;
-let currentChatPartner = null;
 let isEplsMode = false;
 let refreshInterval = null;
 let lastMessageId = null;
@@ -22,9 +21,10 @@ function escapeHtml(str) {
     return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
 }
 
-// ===== ГЕНЕРАЦИЯ УНИКАЛЬНОЙ КОМНАТЫ ДЛЯ ДВОИХ =====
-function getPrivateRoom(userId1, userId2) {
-    const ids = [userId1, userId2].sort();
+// ===== ГЛАВНОЕ: ОДИНАКОВАЯ КОМНАТА ДЛЯ ДВОИХ =====
+function getPrivateRoom(user1, user2) {
+    // Всегда сортируем ID, чтобы получить одинаковый результат
+    const ids = [user1.id, user2.id].sort();
     return `private_${ids[0]}_${ids[1]}`;
 }
 
@@ -72,33 +72,16 @@ async function loadEmployees() {
     return employees;
 }
 
-async function loadNewMessages() {
-    if (!currentUser || !currentRoom) return;
-    
-    let query = `chat_messages?select=*&order=timestamp.asc&room=eq.${currentRoom}`;
-    if (lastMessageId) {
-        query = `chat_messages?select=*&order=timestamp.asc&room=eq.${currentRoom}&id=gt.${lastMessageId}`;
-    }
-    
-    const newMessages = await supabaseFetch(query);
-    if (newMessages && newMessages.length > 0) {
-        lastMessageId = newMessages[newMessages.length - 1].id;
-        appendMessages(newMessages);
-    }
-    return newMessages;
-}
-
-async function loadFullMessages() {
+async function loadMessages() {
     if (!currentUser || !currentRoom) return;
     const messages = await supabaseFetch(`chat_messages?select=*&order=timestamp.asc&room=eq.${currentRoom}`);
+    renderMessages(messages);
     if (messages && messages.length > 0) {
         lastMessageId = messages[messages.length - 1].id;
     }
-    renderFullMessages(messages);
-    return messages;
 }
 
-function renderFullMessages(messages) {
+function renderMessages(messages) {
     const container = document.getElementById('messages');
     if (!container) return;
     if (!messages || !messages.length) {
@@ -107,33 +90,13 @@ function renderFullMessages(messages) {
     }
     container.innerHTML = '';
     messages.forEach(msg => {
-        addMessageToContainer(msg, container);
+        const div = document.createElement('div');
+        div.className = `message ${msg.is_epls ? 'epls' : ''}`;
+        const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        div.innerHTML = `<div class="author ${msg.is_epls ? 'epls' : 'normal'}">${escapeHtml(msg.author_name)} <span class="time">${time}</span></div><div class="text">${escapeHtml(msg.text)}</div>`;
+        container.appendChild(div);
     });
     container.scrollTop = container.scrollHeight;
-}
-
-function appendMessages(newMessages) {
-    const container = document.getElementById('messages');
-    if (!container) return;
-    if (!newMessages || !newMessages.length) return;
-    
-    if (container.children.length === 0 || (container.children.length === 1 && container.children[0].classList?.contains('loading'))) {
-        renderFullMessages(newMessages);
-        return;
-    }
-    
-    newMessages.forEach(msg => {
-        addMessageToContainer(msg, container);
-    });
-    container.scrollTop = container.scrollHeight;
-}
-
-function addMessageToContainer(msg, container) {
-    const div = document.createElement('div');
-    div.className = `message ${msg.is_epls ? 'epls' : ''}`;
-    const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    div.innerHTML = `<div class="author ${msg.is_epls ? 'epls' : 'normal'}">${escapeHtml(msg.author_name)} <span class="time">${time}</span></div><div class="text">${escapeHtml(msg.text)}</div>`;
-    container.appendChild(div);
 }
 
 async function sendMessage() {
@@ -142,15 +105,14 @@ async function sendMessage() {
     if (!text) return;
 
     if (text === '/clear') {
-        if (confirm('Вы уверены, что хотите очистить историю этого чата?')) {
+        if (confirm('Очистить историю этого чата?')) {
             const response = await fetch(`${SUPABASE_URL}/rest/v1/chat_messages?room=eq.${currentRoom}`, {
                 method: 'DELETE',
                 headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
             });
             if (response.ok) {
                 showToast('✅ Чат очищен');
-                lastMessageId = null;
-                await loadFullMessages();
+                await loadMessages();
             } else {
                 showToast('❌ Ошибка очистки', true);
             }
@@ -176,10 +138,7 @@ async function sendMessage() {
     const response = await supabasePost('chat_messages', newMsg);
     if (response.ok) {
         input.value = '';
-        const container = document.getElementById('messages');
-        addMessageToContainer(newMsg, container);
-        container.scrollTop = container.scrollHeight;
-        lastMessageId = newMsg.id;
+        await loadMessages();
     } else {
         showToast('❌ Ошибка отправки', true);
     }
@@ -192,21 +151,18 @@ function renderChatList() {
     container.innerHTML = '';
 
     if (!currentUser.is_admin) {
-        // Сотрудник: показываем ТОЛЬКО ОДИН чат с администратором
+        // Сотрудник: один чат с администратором
         const admin = employees.find(e => e.is_admin === true);
         if (admin) {
-            const roomId = getPrivateRoom(currentUser.id, admin.id);
+            const roomId = getPrivateRoom(currentUser, admin);
             const li = document.createElement('li');
             li.textContent = `👤 ${admin.display_name || admin.full_name}`;
             li.className = currentRoom === roomId ? 'active' : '';
-            // Только один чат, переключение не нужно, но оставим для единообразия
             li.onclick = async () => {
                 if (currentRoom !== roomId) {
                     currentRoom = roomId;
-                    currentChatPartner = admin;
-                    lastMessageId = null;
                     renderChatList();
-                    await loadFullMessages();
+                    await loadMessages();
                 }
             };
             container.appendChild(li);
@@ -214,19 +170,17 @@ function renderChatList() {
         return;
     }
 
-    // Админ: показываем список всех сотрудников
+    // Админ: список всех сотрудников
     employees.forEach(emp => {
         if (emp.id === currentUser.id) return;
-        const roomId = getPrivateRoom(currentUser.id, emp.id);
+        const roomId = getPrivateRoom(currentUser, emp);
         const li = document.createElement('li');
         li.textContent = `👤 ${emp.display_name || emp.full_name}`;
         li.className = currentRoom === roomId ? 'active' : '';
         li.onclick = async () => {
             currentRoom = roomId;
-            currentChatPartner = emp;
-            lastMessageId = null;
             renderChatList();
-            await loadFullMessages();
+            await loadMessages();
         };
         container.appendChild(li);
     });
@@ -340,14 +294,10 @@ async function deleteEmployee(id) {
             await loadEmployees();
             renderAdminTable();
             renderChatList();
-            if (currentChatPartner?.id === id) {
+            if (currentRoom === getPrivateRoom(currentUser, emp)) {
                 const first = employees.find(e => e.id !== currentUser.id);
-                if (first) {
-                    currentRoom = getPrivateRoom(currentUser.id, first.id);
-                    currentChatPartner = first;
-                    await loadFullMessages();
-                }
-                renderChatList();
+                if (first) currentRoom = getPrivateRoom(currentUser, first);
+                await loadMessages();
             }
         } else {
             showToast('❌ Ошибка удаления', true);
@@ -395,7 +345,7 @@ async function registerEmployee() {
     }
 }
 
-// ===== НАСТРОЙКИ ПОЛЬЗОВАТЕЛЯ =====
+// ===== НАСТРОЙКИ =====
 async function updateDisplayName() {
     const newName = document.getElementById('displayNameInput').value.trim();
     if (!newName) { showToast('Введите имя', true); return; }
@@ -434,7 +384,7 @@ async function changePassword() {
     }
 }
 
-// ===== ВХОД И ВЫХОД =====
+// ===== ВХОД =====
 async function login() {
     const fullname = document.getElementById('loginFullname').value.trim();
     const password = document.getElementById('loginPassword').value.trim();
@@ -482,25 +432,22 @@ async function login() {
         renderAdminTable();
         const firstEmp = employees.find(e => e.id !== currentUser.id);
         if (firstEmp) {
-            currentRoom = getPrivateRoom(currentUser.id, firstEmp.id);
-            currentChatPartner = firstEmp;
+            currentRoom = getPrivateRoom(currentUser, firstEmp);
         }
     } else {
         const admin = employees.find(e => e.is_admin === true);
         if (admin) {
-            currentRoom = getPrivateRoom(currentUser.id, admin.id);
-            currentChatPartner = admin;
+            currentRoom = getPrivateRoom(currentUser, admin);
         } else {
-            showToast('❌ Администратор не найден в системе', true);
+            showToast('❌ Администратор не найден', true);
             btn.disabled = false;
             btn.textContent = 'ВОЙТИ';
             return;
         }
     }
 
-    lastMessageId = null;
     renderChatList();
-    await loadFullMessages();
+    await loadMessages();
     startAutoRefresh();
 
     btn.disabled = false;
@@ -511,7 +458,7 @@ function startAutoRefresh() {
     if (refreshInterval) clearInterval(refreshInterval);
     refreshInterval = setInterval(async () => {
         if (currentUser) {
-            await loadNewMessages();
+            await loadMessages();
             if (currentUser.is_admin) {
                 await loadEmployees();
                 renderAdminTable();
@@ -524,7 +471,6 @@ function startAutoRefresh() {
 function logout() {
     if (refreshInterval) clearInterval(refreshInterval);
     currentUser = null;
-    lastMessageId = null;
     document.getElementById('mainInterface').classList.add('hidden');
     document.getElementById('loginCard').classList.remove('hidden');
     document.getElementById('loginFullname').value = '';
