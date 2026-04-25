@@ -24,7 +24,6 @@ function escapeHtml(str) {
 
 // ===== ГЕНЕРАЦИЯ УНИКАЛЬНОЙ КОМНАТЫ ДЛЯ ДВОИХ =====
 function getPrivateRoom(userId1, userId2) {
-    // Сортируем ID, чтобы комната была одинаковой для обоих участников
     const ids = [userId1, userId2].sort();
     return `private_${ids[0]}_${ids[1]}`;
 }
@@ -73,7 +72,6 @@ async function loadEmployees() {
     return employees;
 }
 
-// Только загрузка НОВЫХ сообщений
 async function loadNewMessages() {
     if (!currentUser || !currentRoom) return;
     
@@ -194,19 +192,22 @@ function renderChatList() {
     container.innerHTML = '';
 
     if (!currentUser.is_admin) {
-        // Сотрудник: показываем чат только с администратором
+        // Сотрудник: показываем ТОЛЬКО ОДИН чат с администратором
         const admin = employees.find(e => e.is_admin === true);
         if (admin) {
             const roomId = getPrivateRoom(currentUser.id, admin.id);
             const li = document.createElement('li');
             li.textContent = `👤 ${admin.display_name || admin.full_name}`;
             li.className = currentRoom === roomId ? 'active' : '';
+            // Только один чат, переключение не нужно, но оставим для единообразия
             li.onclick = async () => {
-                currentRoom = roomId;
-                currentChatPartner = admin;
-                lastMessageId = null;
-                renderChatList();
-                await loadFullMessages();
+                if (currentRoom !== roomId) {
+                    currentRoom = roomId;
+                    currentChatPartner = admin;
+                    lastMessageId = null;
+                    renderChatList();
+                    await loadFullMessages();
+                }
             };
             container.appendChild(li);
         }
@@ -236,7 +237,7 @@ function renderAdminTable() {
     const tbody = document.getElementById('empTableBody');
     if (!tbody) return;
     if (!employees.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="loading">Нет сотрудников</td><tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">Нет сотрудников</td></tr>';
         return;
     }
     tbody.innerHTML = '';
@@ -489,6 +490,11 @@ async function login() {
         if (admin) {
             currentRoom = getPrivateRoom(currentUser.id, admin.id);
             currentChatPartner = admin;
+        } else {
+            showToast('❌ Администратор не найден в системе', true);
+            btn.disabled = false;
+            btn.textContent = 'ВОЙТИ';
+            return;
         }
     }
 
