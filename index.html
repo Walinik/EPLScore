@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EPLS | Корпоративная сеть</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -26,7 +26,6 @@
 
     <!-- Основной интерфейс -->
     <div id="mainInterface" class="hidden">
-        <!-- Шапка -->
         <div class="card">
             <div class="card-header">
                 <h2>📋 КОРПОРАТИВНАЯ СЕТЬ EPLS</h2>
@@ -37,7 +36,6 @@
             </div>
         </div>
 
-        <!-- Чат -->
         <div class="card">
             <div class="card-header">
                 <h2>💬 ЧАТ</h2>
@@ -48,8 +46,6 @@
                     <div id="chatSidebar" class="chat-sidebar hidden">
                         <h3>📁 ЛИЧНЫЕ ЧАТЫ</h3>
                         <ul id="chatList" class="chat-list"></ul>
-                        <!-- Отдельный блок для запросов (будет заполняться скриптом) -->
-                        <div id="requestsBlock"></div>
                     </div>
                     <div class="chat-main">
                         <div class="epls-toggle" id="eplsToggleContainer">
@@ -67,7 +63,6 @@
             </div>
         </div>
 
-        <!-- Настройки -->
         <div class="card">
             <div class="card-header"><h2>⚙️ НАСТРОЙКИ</h2><div class="badge-led"><span class="led"></span> ПРОФИЛЬ</div></div>
             <div class="card-content">
@@ -86,7 +81,6 @@
             </div>
         </div>
 
-        <!-- Админ-панель -->
         <div id="adminPanel" class="card hidden">
             <div class="card-header"><h2>👑 АДМИН-ПАНЕЛЬ</h2><div class="badge-led"><span class="led"></span> ПОЛНЫЙ ДОСТУП</div></div>
             <div class="card-content">
@@ -96,8 +90,9 @@
                     <input type="text" id="regPosition" placeholder="Должность">
                     <input type="password" id="regPassword" placeholder="Пароль">
                     <select id="regLevel">
-                        <option value="1">Ур.1</option><option value="2">Ур.2</option><option value="3">Ур.3</option>
-                        <option value="4">Ур.4</option><option value="5">Ур.5</option>
+                        <option value="1">Ур.1</option><option value="2">Ур.2</option>
+                        <option value="3">Ур.3</option><option value="4">Ур.4</option>
+                        <option value="5">Ур.5</option>
                     </select>
                     <button id="registerBtn" class="btn-secondary">➕ ДОБАВИТЬ</button>
                 </div>
@@ -112,7 +107,16 @@
         </div>
     </div>
 </div>
+
+<!-- Подключаем модули -->
 <script src="config.js"></script>
-<script src="script.js"></script>
+<script src="modules/state.js"></script>
+<script src="modules/utils.js"></script>
+<script src="modules/supabase.js"></script>
+<script src="modules/commands.js"></script>
+<script src="modules/chat.js"></script>
+<script src="modules/ui.js"></script>
+<script src="modules/admin.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
