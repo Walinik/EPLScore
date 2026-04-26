@@ -7,7 +7,7 @@ let refreshInterval = null;
 let lastMessageTimestamp = 0;
 let isLoadingMessages = false;
 let isUserAtBottom = true;
-let isSending = false; // Блокировка повторной отправки
+let isSending = false;
 
 // ===== ВСПОМОГАТЕЛЬНЫЕ =====
 function showToast(msg, isErr = false) {
@@ -69,7 +69,6 @@ async function supabaseDelete(endpoint, id) {
     });
 }
 
-// ===== ЗАГРУЗКА ДАННЫХ =====
 async function loadEmployees() {
     const data = await supabaseFetch('employees?select=*');
     if (data && data.length) employees = data;
@@ -141,7 +140,6 @@ function initScrollTracking() {
 }
 
 async function sendMessage() {
-    // Блокируем повторную отправку
     if (isSending) return;
     
     const input = document.getElementById('msgInput');
@@ -151,24 +149,27 @@ async function sendMessage() {
     isSending = true;
 
     try {
-        // Команда /clear
+        // КОМАНДА /clear (ИСПРАВЛЕНА)
         if (text === '/clear') {
-            if (confirm('Очистить историю этого чата?')) {
+            if (confirm('Вы уверены, что хотите очистить историю этого чата?')) {
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/chat_messages?room=eq.${currentRoom}`, {
                     method: 'DELETE',
                     headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
                 });
                 if (response.ok) {
-                    showToast('✅ Чат очищен');
+                    const container = document.getElementById('messages');
+                    container.innerHTML = '<div class="loading">Нет сообщений. Напишите что-нибудь!</div>';
                     lastMessageTimestamp = 0;
-                    await loadFullMessages();
-                } else showToast('❌ Ошибка очистки', true);
+                    showToast('✅ Чат очищен');
+                } else {
+                    showToast('❌ Ошибка очистки', true);
+                }
             }
             input.value = '';
             return;
         }
 
-        // Команда /ask (только для сотрудников)
+        // КОМАНДА /ask (только для сотрудников)
         if (text.startsWith('/ask ') && !currentUser.is_admin) {
             const question = text.substring(5).trim();
             if (!question) {
@@ -195,7 +196,6 @@ async function sendMessage() {
             const response = await supabasePost('chat_messages', askMessage);
             if (response.ok) {
                 showToast(`✅ Запрос отправлен администратору`);
-                // Не добавляем сообщение в текущий чат, только уведомление
             } else showToast('❌ Ошибка отправки запроса', true);
             input.value = '';
             return;
@@ -225,7 +225,6 @@ async function sendMessage() {
             isUserAtBottom = true;
         } else showToast('❌ Ошибка отправки', true);
     } finally {
-        // Разблокируем через небольшую задержку, чтобы избежать случайных повторов
         setTimeout(() => { isSending = false; }, 500);
     }
 }
@@ -289,11 +288,10 @@ function renderChatList() {
     });
 }
 
-// ===== АДМИН-ФУНКЦИИ =====
 function renderAdminTable() {
     const tbody = document.getElementById('empTableBody');
     if (!tbody) return;
-    if (!employees.length) { tbody.innerHTML = '<tr><td colspan="6">Нет сотрудников</td></tr>'; return; }
+    if (!employees.length) { tbody.innerHTML = '<tr><td colspan="6">Нет сотрудников</td><tr>'; return; }
     tbody.innerHTML = '';
     employees.forEach(emp => {
         const row = tbody.insertRow();
