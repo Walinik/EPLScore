@@ -7,6 +7,7 @@ let refreshInterval = null;
 let lastMessageTimestamp = 0;
 let isLoadingMessages = false;
 let isUserAtBottom = true;
+let isSending = false; // Блокировка повторной отправки
 
 // ===== ВСПОМОГАТЕЛЬНЫЕ =====
 function showToast(msg, isErr = false) {
@@ -68,6 +69,7 @@ async function supabaseDelete(endpoint, id) {
     });
 }
 
+// ===== ЗАГРУЗКА ДАННЫХ =====
 async function loadEmployees() {
     const data = await supabaseFetch('employees?select=*');
     if (data && data.length) employees = data;
@@ -139,75 +141,93 @@ function initScrollTracking() {
 }
 
 async function sendMessage() {
+    // Блокируем повторную отправку
+    if (isSending) return;
+    
     const input = document.getElementById('msgInput');
     const text = input.value.trim();
     if (!text) return;
 
-    if (text === '/clear') {
-        if (confirm('Очистить историю этого чата?')) {
-            const response = await fetch(`${SUPABASE_URL}/rest/v1/chat_messages?room=eq.${currentRoom}`, {
-                method: 'DELETE',
-                headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-            });
-            if (response.ok) {
-                showToast('✅ Чат очищен');
-                lastMessageTimestamp = 0;
-                await loadFullMessages();
-            } else showToast('❌ Ошибка очистки', true);
-        }
-        input.value = '';
-        return;
-    }
+    isSending = true;
 
-    // Команда /ask (только для сотрудников)
-    if (text.startsWith('/ask ') && !currentUser.is_admin) {
-        const question = text.substring(5).trim();
-        if (!question) {
-            showToast('❌ Введите вопрос после /ask', true);
+    try {
+        // Команда /clear
+        if (text === '/clear') {
+            if (confirm('Очистить историю этого чата?')) {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/chat_messages?room=eq.${currentRoom}`, {
+                    method: 'DELETE',
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                });
+                if (response.ok) {
+                    showToast('✅ Чат очищен');
+                    lastMessageTimestamp = 0;
+                    await loadFullMessages();
+                } else showToast('❌ Ошибка очистки', true);
+            }
             input.value = '';
             return;
         }
-        const admin = employees.find(e => e.is_admin === true);
-        if (!admin) { showToast('❌ Администратор не найден', true); input.value = ''; return; }
-        const requestsRoom = getRequestsRoom(admin.id);
-        const askMessage = {
+
+        // Команда /ask (только для сотрудников)
+        if (text.startsWith('/ask ') && !currentUser.is_admin) {
+            const question = text.substring(5).trim();
+            if (!question) {
+                showToast('❌ Введите вопрос после /ask', true);
+                input.value = '';
+                return;
+            }
+            const admin = employees.find(e => e.is_admin === true);
+            if (!admin) {
+                showToast('❌ Администратор не найден', true);
+                input.value = '';
+                return;
+            }
+            const requestsRoom = getRequestsRoom(admin.id);
+            const askMessage = {
+                id: Date.now().toString(),
+                room: requestsRoom,
+                author_id: currentUser.id,
+                author_name: currentUser.display_name || currentUser.full_name,
+                text: `📝 ЗАПРОС ОТ ${currentUser.display_name || currentUser.full_name}: ${question}`,
+                is_epls: false,
+                timestamp: Date.now()
+            };
+            const response = await supabasePost('chat_messages', askMessage);
+            if (response.ok) {
+                showToast(`✅ Запрос отправлен администратору`);
+                // Не добавляем сообщение в текущий чат, только уведомление
+            } else showToast('❌ Ошибка отправки запроса', true);
+            input.value = '';
+            return;
+        }
+
+        // Обычное сообщение
+        const authorName = isEplsMode
+            ? (currentUser.epls_name || '🤖 EPLS')
+            : (currentUser.display_name || currentUser.full_name);
+
+        const newMsg = {
             id: Date.now().toString(),
-            room: requestsRoom,
+            room: currentRoom,
             author_id: currentUser.id,
-            author_name: currentUser.display_name || currentUser.full_name,
-            text: `📝 ЗАПРОС ОТ ${currentUser.display_name || currentUser.full_name}: ${question}`,
-            is_epls: false,
+            author_name: authorName,
+            text: text,
+            is_epls: isEplsMode,
             timestamp: Date.now()
         };
-        const response = await supabasePost('chat_messages', askMessage);
-        if (response.ok) showToast(`✅ Запрос отправлен администратору`);
-        else showToast('❌ Ошибка отправки запроса', true);
-        input.value = '';
-        return;
+        const response = await supabasePost('chat_messages', newMsg);
+        if (response.ok) {
+            input.value = '';
+            lastMessageTimestamp = newMsg.timestamp;
+            const container = document.getElementById('messages');
+            addMessageToContainer(newMsg, container);
+            container.scrollTop = container.scrollHeight;
+            isUserAtBottom = true;
+        } else showToast('❌ Ошибка отправки', true);
+    } finally {
+        // Разблокируем через небольшую задержку, чтобы избежать случайных повторов
+        setTimeout(() => { isSending = false; }, 500);
     }
-
-    const authorName = isEplsMode
-        ? (currentUser.epls_name || '🤖 EPLS')
-        : (currentUser.display_name || currentUser.full_name);
-
-    const newMsg = {
-        id: Date.now().toString(),
-        room: currentRoom,
-        author_id: currentUser.id,
-        author_name: authorName,
-        text: text,
-        is_epls: isEplsMode,
-        timestamp: Date.now()
-    };
-    const response = await supabasePost('chat_messages', newMsg);
-    if (response.ok) {
-        input.value = '';
-        lastMessageTimestamp = newMsg.timestamp;
-        const container = document.getElementById('messages');
-        addMessageToContainer(newMsg, container);
-        container.scrollTop = container.scrollHeight;
-        isUserAtBottom = true;
-    } else showToast('❌ Ошибка отправки', true);
 }
 
 function renderChatList() {
@@ -269,11 +289,11 @@ function renderChatList() {
     });
 }
 
-// ===== АДМИН-ФУНКЦИИ (без изменений, но они есть) =====
+// ===== АДМИН-ФУНКЦИИ =====
 function renderAdminTable() {
     const tbody = document.getElementById('empTableBody');
     if (!tbody) return;
-    if (!employees.length) { tbody.innerHTML = '<tr><td colspan="6">Нет сотрудников</tr>'; return; }
+    if (!employees.length) { tbody.innerHTML = '<tr><td colspan="6">Нет сотрудников</td></tr>'; return; }
     tbody.innerHTML = '';
     employees.forEach(emp => {
         const row = tbody.insertRow();
