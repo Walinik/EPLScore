@@ -1,9 +1,22 @@
 // ===== ГЛАВНЫЙ ФАЙЛ =====
-// Подключаем модули (в HTML они уже загружены, здесь просто инициализация)
+
+// Дополнительные функции
+function getPrivateRoom(id1, id2) {
+    const ids = [id1, id2].sort();
+    return `private_${ids[0]}_${ids[1]}`;
+}
+
+function getRequestsRoom(adminId) {
+    return `requests_${adminId}`;
+}
 
 async function loadEmployees() {
     const data = await supabaseFetch('employees?select=*');
-    if (data && data.length) employees = data;
+    if (data && data.length) {
+        employees = data;
+        console.log('✅ Загружено сотрудников:', employees.length);
+        console.log('📋 Список:', employees.map(e => ({ name: e.full_name, id: e.id, is_admin: e.is_admin })));
+    }
     return employees;
 }
 
@@ -17,7 +30,6 @@ async function sendMessage() {
     isSending = true;
     
     try {
-        // Обработка команд
         if (text === '/clear') {
             await handleClear();
             input.value = '';
@@ -30,7 +42,6 @@ async function sendMessage() {
             return;
         }
         
-        // Обычное сообщение
         const authorName = isEplsMode
             ? (currentUser.epls_name || '🤖 EPLS')
             : (currentUser.display_name || currentUser.full_name);
@@ -90,15 +101,29 @@ async function login() {
     
     document.getElementById('loginCard').classList.add('hidden');
     document.getElementById('mainInterface').classList.remove('hidden');
-    updateUserInterface();
     
-    if (currentUser.is_admin) {
+    document.getElementById('userInfoDisplay').innerHTML = `👤 ${currentUser.display_name} | ${currentUser.position} | Уровень ${currentUser.level}`;
+    document.getElementById('displayNameInput').value = currentUser.display_name;
+    document.getElementById('eplsNameInput').value = currentUser.epls_name;
+    
+    const isAdmin = currentUser.is_admin === true;
+    document.getElementById('adminPanel').classList.toggle('hidden', !isAdmin);
+    document.getElementById('eplsNameRow').classList.toggle('hidden', !isAdmin);
+    document.getElementById('chatSidebar').classList.toggle('hidden', !isAdmin);
+    document.getElementById('eplsToggleContainer').classList.toggle('hidden', !isAdmin);
+    
+    if (!isAdmin) isEplsMode = false;
+    
+    // Выбор комнаты
+    if (isAdmin) {
         renderAdminTable();
-        currentRoom = `requests_${currentUser.id}`;
+        currentRoom = getRequestsRoom(currentUser.id);
+        console.log('👑 Админ открыл комнату запросов:', currentRoom);
     } else {
         const admin = employees.find(e => e.is_admin === true);
         if (admin) {
-            currentRoom = getPrivateRoom(currentUser, admin);
+            currentRoom = getPrivateRoom(currentUser.id, admin.id);
+            console.log('👤 Сотрудник открыл чат с админом:', currentRoom);
         } else {
             showToast('❌ Администратор не найден', true);
             btn.disabled = false;
@@ -116,9 +141,12 @@ async function login() {
         if (currentUser) {
             await loadNewMessages();
             if (currentUser.is_admin && employees.length) {
+                const oldCount = employees.length;
                 await loadEmployees();
-                renderAdminTable();
-                renderChatList();
+                if (oldCount !== employees.length) {
+                    renderAdminTable();
+                    renderChatList();
+                }
             }
         }
     }, 3000);
@@ -143,17 +171,19 @@ document.getElementById('sendBtn').onclick = sendMessage;
 document.getElementById('msgInput').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
 });
+
 document.getElementById('updateNameBtn').onclick = async () => {
     const newName = document.getElementById('displayNameInput').value.trim();
     if (!newName) { showToast('Введите имя', true); return; }
     const response = await supabasePatch('employees', currentUser.id, { display_name: newName });
     if (response.ok) {
         currentUser.display_name = newName;
-        updateUserInterface();
+        document.getElementById('userInfoDisplay').innerHTML = `👤 ${currentUser.display_name} | ${currentUser.position} | Уровень ${currentUser.level}`;
         showToast(`✅ Имя изменено на "${newName}"`);
         renderChatList();
     }
 };
+
 document.getElementById('updateEplsNameBtn').onclick = async () => {
     const newName = document.getElementById('eplsNameInput').value.trim();
     if (!newName) { showToast('Введите имя бота', true); return; }
@@ -163,6 +193,7 @@ document.getElementById('updateEplsNameBtn').onclick = async () => {
         showToast(`✅ Имя EPLS изменено на "${newName}"`);
     }
 };
+
 document.getElementById('changePasswordBtn').onclick = async () => {
     const newPwd = document.getElementById('newPasswordInput').value.trim();
     if (!newPwd) { showToast('Введите новый пароль', true); return; }
@@ -172,7 +203,9 @@ document.getElementById('changePasswordBtn').onclick = async () => {
         document.getElementById('newPasswordInput').value = '';
     }
 };
+
 document.getElementById('registerBtn').onclick = registerEmployee;
+
 document.getElementById('eplsModeBtn').onclick = () => {
     if (!currentUser?.is_admin) return;
     isEplsMode = !isEplsMode;
