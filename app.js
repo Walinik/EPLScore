@@ -15,39 +15,51 @@ async function loadEmployees() {
     if (data && data.length) {
         employees = data;
         console.log('✅ Загружено сотрудников:', employees.length);
-        console.log('📋 Список:', employees.map(e => ({ name: e.full_name, id: e.id, is_admin: e.is_admin })));
     }
     return employees;
 }
 
+// Отправка сообщения с защитой от дублирования
+let lastSendTime = 0;
+const SEND_DEBOUNCE_MS = 1000;
+
 async function sendMessage() {
-    if (isSending) return;
+    // Защита от дублирования
+    const now = Date.now();
+    if (isSending || (now - lastSendTime < SEND_DEBOUNCE_MS)) {
+        console.log('⏱️ Пропущена отправка (анти-спам)');
+        return;
+    }
     
     const input = document.getElementById('msgInput');
     const text = input.value.trim();
     if (!text) return;
     
     isSending = true;
+    lastSendTime = now;
     
     try {
+        // Команда /clear
         if (text === '/clear') {
             await handleClear();
             input.value = '';
             return;
         }
         
+        // Команда /ask (только для сотрудников)
         if (text.startsWith('/ask ') && !currentUser.is_admin) {
             await handleAsk(text);
             input.value = '';
             return;
         }
         
+        // Обычное сообщение
         const authorName = isEplsMode
             ? (currentUser.epls_name || '🤖 EPLS')
             : (currentUser.display_name || currentUser.full_name);
         
         const newMsg = {
-            id: Date.now().toString(),
+            id: `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
             room: currentRoom,
             author_id: currentUser.id,
             author_name: authorName,
@@ -67,6 +79,9 @@ async function sendMessage() {
         } else {
             showToast('❌ Ошибка отправки', true);
         }
+    } catch (err) {
+        console.error('Send error:', err);
+        showToast('❌ Ошибка отправки', true);
     } finally {
         setTimeout(() => { isSending = false; }, 500);
     }
@@ -116,7 +131,7 @@ async function login() {
     
     // Выбор комнаты
     if (isAdmin) {
-        renderAdminTable();
+        if (typeof renderAdminTable === 'function') renderAdminTable();
         currentRoom = getRequestsRoom(currentUser.id);
         console.log('👑 Админ открыл комнату запросов:', currentRoom);
     } else {
@@ -133,7 +148,7 @@ async function login() {
     }
     
     lastMessageTimestamp = 0;
-    renderChatList();
+    if (typeof renderChatList === 'function') renderChatList();
     await loadFullMessages();
     
     if (refreshInterval) clearInterval(refreshInterval);
@@ -144,8 +159,8 @@ async function login() {
                 const oldCount = employees.length;
                 await loadEmployees();
                 if (oldCount !== employees.length) {
-                    renderAdminTable();
-                    renderChatList();
+                    if (typeof renderAdminTable === 'function') renderAdminTable();
+                    if (typeof renderChatList === 'function') renderChatList();
                 }
             }
         }
@@ -168,9 +183,19 @@ function logout() {
 document.getElementById('loginBtn').onclick = login;
 document.getElementById('logoutBtn').onclick = logout;
 document.getElementById('sendBtn').onclick = sendMessage;
-document.getElementById('msgInput').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
-});
+
+// Убираем дублирование: вешаем обработчик только на Enter, но без дубля
+const msgInput = document.getElementById('msgInput');
+if (msgInput) {
+    msgInput.removeEventListener('keypress', window._enterHandler);
+    window._enterHandler = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            sendMessage();
+        }
+    };
+    msgInput.addEventListener('keypress', window._enterHandler);
+}
 
 document.getElementById('updateNameBtn').onclick = async () => {
     const newName = document.getElementById('displayNameInput').value.trim();
@@ -180,7 +205,7 @@ document.getElementById('updateNameBtn').onclick = async () => {
         currentUser.display_name = newName;
         document.getElementById('userInfoDisplay').innerHTML = `👤 ${currentUser.display_name} | ${currentUser.position} | Уровень ${currentUser.level}`;
         showToast(`✅ Имя изменено на "${newName}"`);
-        renderChatList();
+        if (typeof renderChatList === 'function') renderChatList();
     }
 };
 
@@ -204,7 +229,9 @@ document.getElementById('changePasswordBtn').onclick = async () => {
     }
 };
 
-document.getElementById('registerBtn').onclick = registerEmployee;
+document.getElementById('registerBtn').onclick = () => {
+    if (typeof registerEmployee === 'function') registerEmployee();
+};
 
 document.getElementById('eplsModeBtn').onclick = () => {
     if (!currentUser?.is_admin) return;
@@ -217,4 +244,4 @@ document.getElementById('eplsModeBtn').onclick = () => {
 
 // Запуск
 loadEmployees();
-initScrollTracking();
+if (typeof initScrollTracking === 'function') initScrollTracking();
