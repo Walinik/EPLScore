@@ -16,6 +16,29 @@ body {
     margin: 0 auto;
 }
 
+/* ===== DRAG & DROP СТИЛИ ===== */
+.chat-list li[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+.chat-list li.dragging,
+#empTableBody tr.dragging {
+    opacity: 0.5;
+}
+
+#empTableBody tr[draggable="true"] {
+    cursor: grab;
+}
+
+#empTableBody tr[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+.chat-list li[draggable="true"]:hover,
+#empTableBody tr[draggable="true"]:hover {
+    background: #1b7b6333;
+}
+
 /* ===== КАРТОЧКИ ===== */
 .card {
     background: linear-gradient(145deg, #0a191c, #031113);
