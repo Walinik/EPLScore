@@ -36,7 +36,7 @@ async function handleAsk(fullText) {
     
     const requestsRoom = getRequestsRoom(admin.id);
     const askMessage = {
-        id: Date.now().toString(),
+        id: `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
         room: requestsRoom,
         author_id: currentUser.id,
         author_name: currentUser.display_name || currentUser.full_name,
