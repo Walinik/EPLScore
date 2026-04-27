@@ -1,4 +1,64 @@
 // ===== АДМИН-ФУНКЦИИ =====
+
+// Хранилище порядка сотрудников
+function saveEmployeesOrder(orderIds) {
+    localStorage.setItem('epls_employees_order', JSON.stringify(orderIds));
+}
+
+function loadEmployeesOrder() {
+    const saved = localStorage.getItem('epls_employees_order');
+    if (saved) {
+        try {
+            return JSON.parse(saved);
+        } catch(e) { return []; }
+    }
+    return [];
+}
+
+// Drag & Drop для таблицы сотрудников
+let empDragSourceId = null;
+
+function handleEmpDragStart(e, id) {
+    empDragSourceId = id;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+    e.target.closest('tr')?.classList.add('dragging');
+}
+
+function handleEmpDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const row = e.target.closest('tr');
+    if (row && row.getAttribute('data-emp-id') !== empDragSourceId) {
+        row.style.borderTop = '2px solid #4bffc3';
+    }
+}
+
+function handleEmpDrop(e, targetId) {
+    e.preventDefault();
+    const rows = Array.from(document.querySelectorAll('#empTableBody tr'));
+    rows.forEach(row => row.style.borderTop = '');
+    
+    if (!empDragSourceId || empDragSourceId === targetId) return;
+    
+    const sourceIndex = rows.findIndex(row => row.getAttribute('data-emp-id') === empDragSourceId);
+    const targetIndex = rows.findIndex(row => row.getAttribute('data-emp-id') === targetId);
+    
+    if (sourceIndex === -1 || targetIndex === -1) return;
+    
+    // Получаем порядок ID
+    const empIds = employees.map(e => e.id);
+    const [removed] = empIds.splice(sourceIndex, 1);
+    empIds.splice(targetIndex, 0, removed);
+    
+    // Сохраняем и обновляем
+    saveEmployeesOrder(empIds);
+    renderAdminTable();
+    showToast('✅ Порядок сотрудников сохранён');
+    
+    empDragSourceId = null;
+}
+
 function renderAdminTable() {
     const tbody = document.getElementById('empTableBody');
     if (!tbody) return;
@@ -6,15 +66,64 @@ function renderAdminTable() {
         tbody.innerHTML = '<tr><td colspan="6">Нет сотрудников</td></tr>';
         return;
     }
+    
+    // Сортируем сотрудников по сохранённому порядку
+    const savedOrder = loadEmployeesOrder();
+    let sortedEmployees = [...employees];
+    if (savedOrder.length > 0) {
+        sortedEmployees = [];
+        for (const id of savedOrder) {
+            const emp = employees.find(e => e.id === id);
+            if (emp) sortedEmployees.push(emp);
+        }
+        employees.forEach(emp => {
+            if (!sortedEmployees.find(e => e.id === emp.id)) {
+                sortedEmployees.push(emp);
+            }
+        });
+    }
+    
     tbody.innerHTML = '';
-    employees.forEach(emp => {
+    sortedEmployees.forEach(emp => {
         const row = tbody.insertRow();
         const id = emp.id;
+        row.setAttribute('data-emp-id', id);
+        row.setAttribute('draggable', 'true');
+        row.style.cursor = 'grab';
         
-        row.insertCell(0).innerHTML = `<input type="text" id="name_${id}" value="${escapeHtml(emp.full_name)}">`;
-        row.insertCell(1).innerHTML = `<input type="text" id="pos_${id}" value="${escapeHtml(emp.position)}">`;
-        row.insertCell(2).innerHTML = `<input type="password" id="pwd_${id}" value="${emp.password}">`;
+        // Drag & Drop для строки
+        row.addEventListener('dragstart', (e) => handleEmpDragStart(e, id));
+        row.addEventListener('dragend', (e) => {
+            e.target.closest('tr')?.classList.remove('dragging');
+        });
+        row.addEventListener('dragover', handleEmpDragOver);
+        row.addEventListener('drop', (e) => handleEmpDrop(e, id));
         
+        // ФИО
+        const nameCell = row.insertCell(0);
+        const nameInp = document.createElement('input');
+        nameInp.type = 'text';
+        nameInp.value = emp.full_name;
+        nameInp.id = `name_${id}`;
+        nameCell.appendChild(nameInp);
+        
+        // Должность
+        const posCell = row.insertCell(1);
+        const posInp = document.createElement('input');
+        posInp.type = 'text';
+        posInp.value = emp.position;
+        posInp.id = `pos_${id}`;
+        posCell.appendChild(posInp);
+        
+        // Пароль
+        const pwdCell = row.insertCell(2);
+        const pwdInp = document.createElement('input');
+        pwdInp.type = 'password';
+        pwdInp.value = emp.password;
+        pwdInp.id = `pwd_${id}`;
+        pwdCell.appendChild(pwdInp);
+        
+        // Уровень
         const lvlCell = row.insertCell(3);
         const lvlSel = document.createElement('select');
         lvlSel.id = `lvl_${id}`;
@@ -27,6 +136,7 @@ function renderAdminTable() {
         }
         lvlCell.appendChild(lvlSel);
         
+        // Админ
         const adminCell = row.insertCell(4);
         const chk = document.createElement('input');
         chk.type = 'checkbox';
@@ -34,6 +144,7 @@ function renderAdminTable() {
         chk.id = `admin_${id}`;
         adminCell.appendChild(chk);
         
+        // Действия
         const actCell = row.insertCell(5);
         const saveBtn = document.createElement('button');
         saveBtn.textContent = '💾 Сохранить';
@@ -81,9 +192,9 @@ function renderAdminTable() {
                     await loadEmployees();
                     renderAdminTable();
                     renderChatList();
-                    if (currentRoom === getPrivateRoom(currentUser, empTarget)) {
+                    if (currentRoom === getPrivateRoom(currentUser.id, empTarget.id)) {
                         const first = employees.find(e => e.id !== currentUser.id);
-                        if (first) currentRoom = getPrivateRoom(currentUser, first);
+                        if (first) currentRoom = getPrivateRoom(currentUser.id, first.id);
                         lastMessageTimestamp = 0;
                         await loadFullMessages();
                     }
