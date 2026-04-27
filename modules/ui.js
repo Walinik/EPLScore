@@ -4,10 +4,11 @@ function renderChatList() {
     if (!container || !currentUser) return;
     container.innerHTML = '';
 
+    // Для сотрудника — только чат с администратором
     if (!currentUser.is_admin) {
         const admin = employees.find(e => e.is_admin === true);
         if (admin) {
-            const roomId = getPrivateRoom(currentUser, admin);
+            const roomId = getPrivateRoom(currentUser.id, admin.id);
             const li = document.createElement('li');
             li.textContent = `👤 ${admin.display_name || admin.full_name}`;
             li.className = currentRoom === roomId ? 'active' : '';
@@ -24,8 +25,8 @@ function renderChatList() {
         return;
     }
 
-    // Админ: сначала вкладка "🔔 ЗАПРОСЫ"
-    const requestsRoomId = `requests_${currentUser.id}`;
+    // Администратор: показываем комнату запросов и всех сотрудников
+    const requestsRoomId = getRequestsRoom(currentUser.id);
     const requestsLi = document.createElement('li');
     requestsLi.textContent = `🔔 ЗАПРОСЫ`;
     requestsLi.className = currentRoom === requestsRoomId ? 'active' : '';
@@ -39,10 +40,10 @@ function renderChatList() {
     };
     container.appendChild(requestsLi);
 
-    // Личные чаты с сотрудниками
+    // Список всех сотрудников (кроме самого админа)
     employees.forEach(emp => {
         if (emp.id === currentUser.id) return;
-        const roomId = getPrivateRoom(currentUser, emp);
+        const roomId = getPrivateRoom(currentUser.id, emp.id);
         const li = document.createElement('li');
         li.textContent = `👤 ${emp.display_name || emp.full_name}`;
         li.className = currentRoom === roomId ? 'active' : '';
@@ -56,18 +57,4 @@ function renderChatList() {
         };
         container.appendChild(li);
     });
-}
-
-function updateUserInterface() {
-    document.getElementById('userInfoDisplay').innerHTML = `👤 ${currentUser.display_name} | ${currentUser.position} | Уровень ${currentUser.level}`;
-    document.getElementById('displayNameInput').value = currentUser.display_name;
-    document.getElementById('eplsNameInput').value = currentUser.epls_name;
-    
-    const isAdmin = currentUser.is_admin === true;
-    document.getElementById('adminPanel').classList.toggle('hidden', !isAdmin);
-    document.getElementById('eplsNameRow').classList.toggle('hidden', !isAdmin);
-    document.getElementById('chatSidebar').classList.toggle('hidden', !isAdmin);
-    document.getElementById('eplsToggleContainer').classList.toggle('hidden', !isAdmin);
-    
-    if (!isAdmin) isEplsMode = false;
 }
