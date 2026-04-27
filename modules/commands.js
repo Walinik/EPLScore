@@ -21,8 +21,8 @@ async function handleClear() {
     }
 }
 
-async function handleAsk(text) {
-    const question = text.substring(5).trim();
+async function handleAsk(fullText) {
+    const question = fullText.substring(5).trim();
     if (!question) {
         showToast('❌ Введите вопрос после /ask', true);
         return;
@@ -34,7 +34,7 @@ async function handleAsk(text) {
         return;
     }
     
-    const requestsRoom = `requests_${admin.id}`;
+    const requestsRoom = getRequestsRoom(admin.id);
     const askMessage = {
         id: Date.now().toString(),
         room: requestsRoom,
