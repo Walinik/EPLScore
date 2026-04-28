@@ -17,70 +17,25 @@ function loadEmployeesOrder() {
     return [];
 }
 
-// Переменные для Drag & Drop
-let dragSourceEmpId = null;
-let dragSourceRowIndex = null;
+// Глобальные переменные для Drag & Drop
+let draggedEmpId = null;
 
-function handleEmpDragStart(e, empId, rowIndex) {
-    dragSourceEmpId = empId;
-    dragSourceRowIndex = rowIndex;
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', empId);
-    e.target.closest('tr')?.classList.add('dragging');
-}
-
-function handleEmpDragOver(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    const row = e.target.closest('tr');
-    if (row && row.getAttribute('data-emp-id') !== dragSourceEmpId) {
-        row.style.borderTop = '2px solid #4bffc3';
-    }
-}
-
-function handleEmpDragLeave(e) {
-    const row = e.target.closest('tr');
-    if (row) {
-        row.style.borderTop = '';
-    }
-}
-
-function handleEmpDrop(e, targetEmpId) {
-    e.preventDefault();
-    const rows = document.querySelectorAll('#empTableBody tr');
-    rows.forEach(row => row.style.borderTop = '');
+// Функция для обновления порядка в массиве и сохранения
+function reorderEmployees(sourceId, targetId) {
+    const sourceIndex = employees.findIndex(e => e.id === sourceId);
+    const targetIndex = employees.findIndex(e => e.id === targetId);
     
-    if (!dragSourceEmpId || dragSourceEmpId === targetEmpId) {
-        dragSourceEmpId = null;
-        dragSourceRowIndex = null;
-        return;
-    }
+    if (sourceIndex === -1 || targetIndex === -1) return false;
     
-    // Находим индексы в текущем отображаемом массиве employees
-    // Используем g employees (глобальный массив)
-    const sourceIndex = employees.findIndex(e => e.id === dragSourceEmpId);
-    const targetIndex = employees.findIndex(e => e.id === targetEmpId);
-    
-    if (sourceIndex === -1 || targetIndex === -1) {
-        dragSourceEmpId = null;
-        dragSourceRowIndex = null;
-        return;
-    }
-    
-    // Перемещаем элемент в массиве
+    // Перемещаем элемент
     const [movedEmp] = employees.splice(sourceIndex, 1);
     employees.splice(targetIndex, 0, movedEmp);
     
-    // Сохраняем новый порядок ID
+    // Сохраняем новый порядок
     const newOrder = employees.map(e => e.id);
     saveEmployeesOrder(newOrder);
     
-    // Перерисовываем таблицу
-    renderAdminTable();
-    showToast('✅ Порядок сотрудников сохранён');
-    
-    dragSourceEmpId = null;
-    dragSourceRowIndex = null;
+    return true;
 }
 
 function renderAdminTable() {
@@ -95,12 +50,10 @@ function renderAdminTable() {
     const savedOrder = loadEmployeesOrder();
     if (savedOrder.length > 0) {
         const sortedEmployees = [];
-        // Сначала добавляем по сохранённому порядку
         for (const id of savedOrder) {
             const emp = employees.find(e => e.id === id);
             if (emp) sortedEmployees.push(emp);
         }
-        // Добавляем новых сотрудников, которых нет в сохранённом порядке
         for (const emp of employees) {
             if (!sortedEmployees.find(e => e.id === emp.id)) {
                 sortedEmployees.push(emp);
@@ -110,24 +63,54 @@ function renderAdminTable() {
     }
     
     tbody.innerHTML = '';
-    employees.forEach((emp, idx) => {
+    employees.forEach(emp => {
         const row = tbody.insertRow();
         const id = emp.id;
         row.setAttribute('data-emp-id', id);
-        row.setAttribute('data-emp-index', idx);
         row.setAttribute('draggable', 'true');
         row.style.cursor = 'grab';
         
         // Drag & Drop события
-        row.addEventListener('dragstart', (e) => handleEmpDragStart(e, id, idx));
-        row.addEventListener('dragend', (e) => {
-            e.target.closest('tr')?.classList.remove('dragging');
-            dragSourceEmpId = null;
-            dragSourceRowIndex = null;
+        row.addEventListener('dragstart', (e) => {
+            draggedEmpId = id;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', id);
+            row.classList.add('dragging');
         });
-        row.addEventListener('dragover', handleEmpDragOver);
-        row.addEventListener('dragleave', handleEmpDragLeave);
-        row.addEventListener('drop', (e) => handleEmpDrop(e, id));
+        
+        row.addEventListener('dragend', (e) => {
+            row.classList.remove('dragging');
+            draggedEmpId = null;
+        });
+        
+        row.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            const targetRow = e.target.closest('tr');
+            if (targetRow && targetRow.getAttribute('data-emp-id') !== draggedEmpId) {
+                targetRow.style.borderTop = '2px solid #4bffc3';
+            }
+        });
+        
+        row.addEventListener('dragleave', (e) => {
+            const targetRow = e.target.closest('tr');
+            if (targetRow) targetRow.style.borderTop = '';
+        });
+        
+        row.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            const targetRow = e.target.closest('tr');
+            if (targetRow) targetRow.style.borderTop = '';
+            
+            const targetId = targetRow?.getAttribute('data-emp-id');
+            if (draggedEmpId && targetId && draggedEmpId !== targetId) {
+                const success = reorderEmployees(draggedEmpId, targetId);
+                if (success) {
+                    renderAdminTable(); // Перерисовываем таблицу
+                    showToast('✅ Порядок сотрудников сохранён');
+                }
+            }
+        });
         
         // ФИО
         const nameCell = row.insertCell(0);
@@ -161,7 +144,7 @@ function renderAdminTable() {
             const opt = document.createElement('option');
             opt.value = i;
             opt.textContent = i;
-            if (emp.level == i) opt.selected = true;
+            if (emp.level === i) opt.selected = true;
             lvlSel.appendChild(opt);
         }
         lvlCell.appendChild(lvlSel);
@@ -199,7 +182,7 @@ function renderAdminTable() {
                 showToast(`✅ Обновлено`);
                 await loadEmployees();
                 renderAdminTable();
-                renderChatList();
+                if (typeof renderChatList === 'function') renderChatList();
             } else {
                 showToast('❌ Ошибка', true);
             }
@@ -221,13 +204,12 @@ function renderAdminTable() {
                     showToast(`✅ Удалён`);
                     await loadEmployees();
                     renderAdminTable();
-                    renderChatList();
-                    // Если удалили текущий чат — переключаемся на первый
+                    if (typeof renderChatList === 'function') renderChatList();
                     if (currentRoom === getPrivateRoom(currentUser.id, empTarget.id)) {
                         const first = employees.find(e => e.id !== currentUser.id);
                         if (first) currentRoom = getPrivateRoom(currentUser.id, first.id);
                         lastMessageTimestamp = 0;
-                        await loadFullMessages();
+                        if (typeof loadFullMessages === 'function') await loadFullMessages();
                     }
                 } else {
                     showToast('❌ Ошибка', true);
@@ -275,8 +257,13 @@ async function registerEmployee() {
         document.getElementById('regPassword').value = '';
         await loadEmployees();
         renderAdminTable();
-        renderChatList();
+        if (typeof renderChatList === 'function') renderChatList();
     } else {
         showToast('❌ Ошибка добавления', true);
     }
+}
+
+function getPrivateRoom(id1, id2) {
+    const ids = [id1, id2].sort();
+    return `private_${ids[0]}_${ids[1]}`;
 }
