@@ -20,71 +20,15 @@ function loadChatOrderForAdmin() {
     return [];
 }
 
-// Drag & Drop переменные для чатов
-let dragSourceChatId = null;
-
-function handleChatDragStart(e, chatId) {
-    dragSourceChatId = chatId;
-    e.target.style.opacity = '0.5';
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', chatId);
-}
-
-function handleChatDragEnd(e) {
-    e.target.style.opacity = '';
-    dragSourceChatId = null;
-}
-
-function handleChatDragOver(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    const target = e.target.closest('li');
-    if (target && target.getAttribute('data-chat-id') !== dragSourceChatId) {
-        target.style.borderTop = '2px solid #4bffc3';
-    }
-}
-
-function handleChatDragLeave(e) {
-    const target = e.target.closest('li');
-    if (target) target.style.borderTop = '';
-}
-
-function handleChatDrop(e, targetChatId) {
-    e.preventDefault();
-    const target = e.target.closest('li');
-    if (target) target.style.borderTop = '';
-    
-    if (!dragSourceChatId || dragSourceChatId === targetChatId) return;
-    
-    // Получаем все ID чатов из текущего DOM
-    const container = document.getElementById('chatList');
-    const items = Array.from(container.children);
-    const chatIds = items.map(item => item.getAttribute('data-chat-id'));
-    
-    const sourceIndex = chatIds.findIndex(id => id === dragSourceChatId);
-    const targetIndex = chatIds.findIndex(id => id === targetChatId);
-    
-    if (sourceIndex === -1 || targetIndex === -1) return;
-    
-    // Перемещаем
-    const [removed] = chatIds.splice(sourceIndex, 1);
-    chatIds.splice(targetIndex, 0, removed);
-    
-    // Сохраняем порядок (исключая фиксированный чат "requests")
-    const filteredOrder = chatIds.filter(id => id !== 'requests');
-    saveChatOrderForAdmin(filteredOrder);
-    
-    // Перерисовываем
-    renderChatList();
-    showToast('✅ Порядок чатов сохранён');
-}
+// Глобальная переменная для перетаскивания чатов
+let draggedChatId = null;
 
 function renderChatList() {
     const container = document.getElementById('chatList');
     if (!container || !currentUser) return;
     container.innerHTML = '';
 
-    // Для сотрудника — только чат с администратором (без перетаскивания)
+    // Для сотрудника — только чат с администратором
     if (!currentUser.is_admin) {
         const admin = employees.find(e => e.is_admin === true);
         if (admin) {
@@ -99,7 +43,7 @@ function renderChatList() {
                     currentRoom = roomId;
                     lastMessageTimestamp = 0;
                     renderChatList();
-                    await loadFullMessages();
+                    if (typeof loadFullMessages === 'function') await loadFullMessages();
                 }
             };
             container.appendChild(li);
@@ -107,16 +51,14 @@ function renderChatList() {
         return;
     }
 
-    // Администратор: строим список с Drag & Drop
+    // Администратор: строим список
     const requestsRoomId = getRequestsRoom(currentUser.id);
     
-    // Формируем массив чатов
     let chatItems = [];
     
-    // Комната запросов (фиксированная, первая)
+    // Комната запросов (фиксированная)
     chatItems.push({
         id: 'requests',
-        userId: 'requests',
         title: '🔔 ЗАПРОСЫ',
         isFixed: true,
         roomId: requestsRoomId
@@ -127,7 +69,6 @@ function renderChatList() {
         if (emp.id === currentUser.id) return;
         chatItems.push({
             id: emp.id,
-            userId: emp.id,
             title: `👤 ${emp.display_name || emp.full_name}`,
             isFixed: false,
             roomId: getPrivateRoom(currentUser.id, emp.id)
@@ -138,24 +79,21 @@ function renderChatList() {
     const savedOrder = loadChatOrderForAdmin();
     if (savedOrder.length > 0) {
         const orderedItems = [];
-        // Фиксированный элемент всегда первый
         const fixedItem = chatItems.find(i => i.isFixed);
         if (fixedItem) orderedItems.push(fixedItem);
-        // Остальные по сохранённому порядку
         for (const id of savedOrder) {
             const item = chatItems.find(i => i.id === id && !i.isFixed);
             if (item) orderedItems.push(item);
         }
-        // Добавляем новых сотрудников, которых нет в сохранённом порядке
-        chatItems.forEach(item => {
+        for (const item of chatItems) {
             if (!item.isFixed && !orderedItems.find(i => i.id === item.id)) {
                 orderedItems.push(item);
             }
-        });
+        }
         chatItems = orderedItems;
     }
     
-    // Создаём элементы списка
+    // Создаём элементы
     chatItems.forEach(item => {
         const li = document.createElement('li');
         li.textContent = item.title;
@@ -166,11 +104,54 @@ function renderChatList() {
         if (!item.isFixed) {
             li.draggable = true;
             li.style.cursor = 'grab';
-            li.addEventListener('dragstart', (e) => handleChatDragStart(e, item.id));
-            li.addEventListener('dragend', handleChatDragEnd);
-            li.addEventListener('dragover', handleChatDragOver);
-            li.addEventListener('dragleave', handleChatDragLeave);
-            li.addEventListener('drop', (e) => handleChatDrop(e, item.id));
+            
+            li.addEventListener('dragstart', (e) => {
+                draggedChatId = item.id;
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', item.id);
+                li.style.opacity = '0.5';
+            });
+            
+            li.addEventListener('dragend', (e) => {
+                li.style.opacity = '';
+                draggedChatId = null;
+            });
+            
+            li.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                const target = e.target.closest('li');
+                if (target && target.getAttribute('data-chat-id') !== draggedChatId) {
+                    target.style.borderTop = '2px solid #4bffc3';
+                }
+            });
+            
+            li.addEventListener('dragleave', (e) => {
+                const target = e.target.closest('li');
+                if (target) target.style.borderTop = '';
+            });
+            
+            li.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const target = e.target.closest('li');
+                if (target) target.style.borderTop = '';
+                
+                const targetId = target?.getAttribute('data-chat-id');
+                if (draggedChatId && targetId && draggedChatId !== targetId && targetId !== 'requests') {
+                    // Получаем все ID чатов (без фиксированного)
+                    const allIds = chatItems.filter(i => !i.isFixed).map(i => i.id);
+                    const sourceIndex = allIds.findIndex(id => id === draggedChatId);
+                    const targetIndex = allIds.findIndex(id => id === targetId);
+                    
+                    if (sourceIndex !== -1 && targetIndex !== -1) {
+                        const [removed] = allIds.splice(sourceIndex, 1);
+                        allIds.splice(targetIndex, 0, removed);
+                        saveChatOrderForAdmin(allIds);
+                        renderChatList();
+                        showToast('✅ Порядок чатов сохранён');
+                    }
+                }
+            });
         } else {
             li.draggable = false;
             li.style.cursor = 'pointer';
@@ -181,7 +162,7 @@ function renderChatList() {
                 currentRoom = item.roomId;
                 lastMessageTimestamp = 0;
                 renderChatList();
-                await loadFullMessages();
+                if (typeof loadFullMessages === 'function') await loadFullMessages();
             }
         };
         
