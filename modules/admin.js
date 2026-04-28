@@ -248,6 +248,15 @@ async function registerEmployee() {
         display_name: full,
         epls_name: '🤖 EPLS'
     };
+
+// После успешного обновления сотрудника
+if (currentUser && currentUser.id === id) {
+    currentUser.display_name = full_name;
+    currentUser.position = position;
+    currentUser.level = parseInt(level);
+    currentUser.is_admin = is_admin;
+    saveLastUser(currentUser);
+}
     
     const response = await supabasePost('employees', newEmp);
     if (response.ok) {
